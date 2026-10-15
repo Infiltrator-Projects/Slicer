@@ -4,19 +4,20 @@
 
 Slicer is Infiltrator Projects' desktop application for preparing 3D models for FFF and resin printers. It converts models into G-code or resin print layers and includes a G-code viewer, multiple material support, model repair, variable layer heights, supports, and a command-line interface.
 
-**Product version: 0.0.1.** Infiltrator's release numbering is independent of the PrusaSlicer 2.9.6 source baseline.
+**Product version: 0.0.2.** Infiltrator's release numbering is independent of the PrusaSlicer 2.9.6 source baseline.
 
 ## Install
 
 Download the qualified packages from [Infiltrator Slicer releases](https://github.com/Infiltrator-Projects/Slicer/releases):
 
-- **Linux amd64:** `infiltrator-slicer_0.0.1_amd64.deb` for Debian/Ubuntu systems with the package's runtime dependencies.
-- **Windows x64:** `slicer-0.0.1-windows.exe` installer.
+- **Linux amd64:** `infiltrator-slicer_0.0.2_amd64.deb` for Debian/Ubuntu systems with the package's runtime dependencies.
+- **Windows x64:** `slicer-0.0.2-windows.exe` installer.
+- **Linux local CPU build:** `infiltrator-slicer-0.0.2-native-installer.run`, with the application and pinned dependency sources bundled inside.
 
 For a downloaded Debian package:
 
 ```sh
-sudo apt install ./infiltrator-slicer_0.0.1_amd64.deb
+sudo apt install ./infiltrator-slicer_0.0.2_amd64.deb
 slicer --help
 ```
 
@@ -28,6 +29,16 @@ sudo apt install infiltrator-slicer
 ```
 
 On Windows, run the installer and open **Slicer** from the Start menu. The installer includes the application, its DLLs, and resources.
+
+For a Linux build optimised for your own CPU:
+
+```sh
+bash infiltrator-slicer-0.0.2-native-installer.run --profile native
+# GCC two-pass profile-guided optimisation:
+bash infiltrator-slicer-0.0.2-native-installer.run --profile aggressive
+```
+
+The `.run` builds and tests the application locally, creates a Debian package, and installs that package. Use `--no-install` to retain the package without installing it, or `--dry-run` to inspect the plan. Missing operating-system build tools are reported before compilation; `--install-prerequisites` explicitly allows installing them through APT. Library source archives are bundled and hash-checked, without downloads from third-party build servers.
 
 ## Use
 
@@ -45,7 +56,7 @@ Application releases come from this repository or Infiltrator APT. The inherited
 - [Vendored dependency sources and verification](deps/vendor/README.md)
 - [Report an issue](https://github.com/Infiltrator-Projects/Slicer/issues)
 
-The supported distributables are currently the Linux amd64 DEB and Windows x64 EXE. Inherited macOS and other platform development notes remain references, not a promise of qualified release packages.
+The supported distributables are the Linux amd64 DEB, Windows x64 EXE, and Linux amd64 native compiler `.run`. Inherited macOS and other platform development notes remain development references.
 
 ## Origins and license
 

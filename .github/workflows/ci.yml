@@ -48,8 +48,11 @@ jobs:
 
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
+          bash -n support/native/bootstrap.sh.in
           python3 support/linux/verify-staging.py
           python3 support/verify-vendor.py
+          python3 support/native/verify-installer.py
+          python3 support/native/verify-driver.py
 
           if grep -REn --include='*.yml' --include='*.yaml' \
             'uses:[[:space:]]+Prusa-Development/PrusaSlicer-Actions' \
@@ -102,7 +105,7 @@ jobs:
         run: |
           set -euo pipefail
           printf 'Runner: %s (%s/%s)\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
-          packages=(autoconf build-essential cmake dpkg-dev git python3 perl pkg-config
+          packages=(autoconf automake build-essential cmake dpkg-dev git python3 perl pkg-config
             libdbus-1-dev libglu1-mesa-dev libgtk-3-dev
             libhidapi-dev libwebkit2gtk-4.1-dev texinfo xauth xvfb)
           missing=()
@@ -168,6 +171,11 @@ jobs:
           smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-deb-smoke.XXXXXX")
           trap 'rm -rf -- "$smoke_root"' EXIT
           dpkg-deb --extract "$deb" "$smoke_root"
+          grep -Fx 'Name=Slicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
+          grep -Fx 'Icon=InfiltratorSlicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
+          grep -Fx 'Exec=slicer %F' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
+          test -s "$smoke_root/usr/share/icons/hicolor/scalable/apps/InfiltratorSlicer.svg"
+          test ! -e "$smoke_root/usr/share/applications/PrusaSlicer.desktop"
           help_output=$(xvfb-run -a "$smoke_root/usr/bin/slicer" --help)
           version_pattern="^Slicer-${version//./\\.}([^0-9.]|$)"
           printf '%s\n' "$help_output" | grep -E "$version_pattern"
@@ -178,6 +186,108 @@ jobs:
           name: slicer-linux-release
           path: |
             dist/infiltrator-slicer_*.deb
+            support/VERSION
+          if-no-files-found: error
+          retention-days: 14
+
+  native-installer:
+    name: Build and qualify Linux native .run
+    needs: [source, linux-release]
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'windows'
+    runs-on: [self-hosted, Linux, X64, linux-native, bigbedroom]
+    timeout-minutes: 180
+    steps:
+      - name: Check out exact verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Clean source while retaining native compiler state
+        run: git clean -ffdx -e /build/
+
+      - name: Prepare self-hosted native build prerequisites
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'Runner: %s (%s/%s)\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          packages=(autoconf automake build-essential cmake dpkg-dev git python3 perl pkg-config
+            libdbus-1-dev libglu1-mesa-dev libgtk-3-dev
+            libhidapi-dev libwebkit2gtk-4.1-dev texinfo xauth xvfb)
+          missing=()
+          for package in "${packages[@]}"; do
+            if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+              missing+=("$package")
+            fi
+          done
+          if ((${#missing[@]})); then
+            printf 'Missing build packages: %s\n' "${missing[*]}"
+            if ! sudo -n true 2>/dev/null; then
+              printf 'One-time setup required on this Linux host: sudo apt-get install -y --no-install-recommends'
+              printf ' %q' "${missing[@]}"
+              printf '\nRun that command in an administrator terminal on this host, then rerun Verify.\n' >&2
+              exit 1
+            fi
+            sudo -n apt-get update
+            sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
+
+      - name: Build exact source native installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 support/native/build-run.py --output-dir dist --source-ref HEAD
+          version=$(tr -d '[:space:]' < support/VERSION)
+          installer="dist/infiltrator-slicer-${version}-native-installer.run"
+          test -x "$installer"
+          "$installer" --help
+          "$installer" --metadata | python3 -c '
+          import json, os, sys
+          metadata = json.load(sys.stdin)
+          assert metadata["source_sha"] == os.environ["GITHUB_SHA"]
+          assert metadata["version"] == sys.argv[1]
+          ' "$version"
+          extract_root=$(mktemp -d "$RUNNER_TEMP/slicer-native-extract.XXXXXX")
+          trap 'rm -rf -- "$extract_root"' EXIT
+          "$installer" --extract-only "$extract_root/source"
+          test -f "$extract_root/source/CMakeLists.txt"
+          test "$(tr -d '[:space:]' < "$extract_root/source/support/VERSION")" = "$version"
+          "$installer" --profile aggressive \
+            --build-dir "$GITHUB_WORKSPACE/build/native-installer-qualified/$GITHUB_SHA" --dry-run
+
+      - name: Qualify aggressive native compilation and local Debian packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < support/VERSION)
+          installer="dist/infiltrator-slicer-${version}-native-installer.run"
+          "$installer" --profile aggressive \
+            --build-dir "$GITHUB_WORKSPACE/build/native-installer-qualified/$GITHUB_SHA" --no-install
+          deb="$GITHUB_WORKSPACE/build/native-installer-qualified/$GITHUB_SHA/packages/infiltrator-slicer_${version}_amd64.deb"
+          test "$(dpkg-deb -f "$deb" Package)" = infiltrator-slicer
+          test "$(dpkg-deb -f "$deb" Version)" = "$version"
+          test "$(dpkg-deb -f "$deb" X-Slicer-Build-Profile)" = aggressive
+          test "$(dpkg-deb -f "$deb" X-Slicer-Source-SHA)" = "$GITHUB_SHA"
+          smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-native-smoke.XXXXXX")
+          trap 'rm -rf -- "$smoke_root"' EXIT
+          dpkg-deb --extract "$deb" "$smoke_root"
+          grep -Fx 'Name=Slicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
+          grep -Fx 'Icon=InfiltratorSlicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
+          grep -Fx 'Exec=slicer %F' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
+          test -s "$smoke_root/usr/share/icons/hicolor/scalable/apps/InfiltratorSlicer.svg"
+          test ! -e "$smoke_root/usr/share/applications/PrusaSlicer.desktop"
+          help_output=$(xvfb-run -a "$smoke_root/usr/bin/slicer" --help)
+          version_pattern="^Slicer-${version//./\\.}([^0-9.]|$)"
+          printf '%s\n' "$help_output" | grep -E "$version_pattern"
+
+      - name: Upload exact qualified native installer
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: slicer-native-release
+          path: |
+            dist/infiltrator-slicer-*-native-installer.run
             support/VERSION
           if-no-files-found: error
           retention-days: 14
@@ -353,12 +463,12 @@ jobs:
 
   release-assets:
     name: Seal exact qualified release assets
-    needs: [linux-release, windows-release]
+    needs: [source, linux-release, native-installer, windows-release]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Clean prior bundle outputs
-        run: rm -rf -- candidate-linux candidate-windows release
+        run: rm -rf -- candidate-linux candidate-native candidate-windows release
 
       - name: Download exact Linux candidate
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
@@ -372,33 +482,53 @@ jobs:
           name: slicer-windows-release
           path: candidate-windows
 
+      - name: Download exact native installer candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: slicer-native-release
+          path: candidate-native
+
       - name: Seal release bundle
         shell: bash
         run: |
           set -euo pipefail
 
           version=$(tr -d '[:space:]' < candidate-linux/support/VERSION)
+          test "$(tr -d '[:space:]' < candidate-native/support/VERSION)" = "$version"
           expected_deb="infiltrator-slicer_${version}_amd64.deb"
+          expected_installer="infiltrator-slicer-${version}-native-installer.run"
           expected_windows="slicer-${version}-windows.exe"
 
           mapfile -t debs < <(find candidate-linux/dist -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
           mapfile -t windows_apps < <(find candidate-windows -maxdepth 1 -type f -name '*.exe' -printf '%f\n' | sort)
+          mapfile -t installers < <(find candidate-native/dist -maxdepth 1 -type f -name '*.run' -printf '%f\n' | sort)
           test "${#debs[@]}" -eq 1
           test "${#windows_apps[@]}" -eq 1
+          test "${#installers[@]}" -eq 1
           test "${debs[0]}" = "$expected_deb"
           test "${windows_apps[0]}" = "$expected_windows"
+          test "${installers[0]}" = "$expected_installer"
 
           mkdir release
           cp "candidate-linux/dist/$expected_deb" "release/$expected_deb"
           cp "candidate-windows/$expected_windows" "release/$expected_windows"
+          cp "candidate-native/dist/$expected_installer" "release/$expected_installer"
 
           test "$(dpkg-deb -f "release/$expected_deb" Package)" = "infiltrator-slicer"
           test "$(dpkg-deb -f "release/$expected_deb" Version)" = "$version"
           test "$(head -c 2 "release/$expected_windows")" = "MZ"
+          chmod +x "release/$expected_installer"
+          "release/$expected_installer" --help >/dev/null
+          "release/$expected_installer" --metadata | python3 -c '
+          import json, os, sys
+          metadata = json.load(sys.stdin)
+          assert metadata["source_sha"] == os.environ["GITHUB_SHA"]
+          assert metadata["version"] == sys.argv[1]
+          ' "$version"
 
           (
             cd release
-            sha256sum "$expected_deb" "$expected_windows" > RELEASE_SHA256SUMS.txt
+            sha256sum "$expected_deb" "$expected_installer" "$expected_windows" > RELEASE_SHA256SUMS.txt
             printf '%s\n' "$GITHUB_SHA" > RELEASE_SOURCE_SHA
             printf '%s\n' "$version" > RELEASE_VERSION
           )

@@ -42,7 +42,7 @@ else ()
                              --enable-static=yes \
                              --with-gmp='${${PROJECT_NAME}_DEP_INSTALL_PREFIX}' \
                              ${_gmp_build_tgt}"
-        BUILD_COMMAND make -j
+        BUILD_COMMAND make "-j${DEP_MAX_THREADS}"
         INSTALL_COMMAND make install
     )
 endif ()

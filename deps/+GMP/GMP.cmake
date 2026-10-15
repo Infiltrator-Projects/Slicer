@@ -69,7 +69,7 @@ else ()
         DOWNLOAD_DIR ${${PROJECT_NAME}_DEP_DOWNLOAD_DIR}/GMP
         BUILD_IN_SOURCE ON 
         CONFIGURE_COMMAND  env "CFLAGS=${_gmp_ccflags}" "CXXFLAGS=${_gmp_ccflags}" ./configure ${_cross_compile_arg} --enable-shared=no --enable-cxx=yes --enable-static=yes "--prefix=${${PROJECT_NAME}_DEP_INSTALL_PREFIX}" ${_gmp_build_tgt}
-        BUILD_COMMAND     make -j
+        BUILD_COMMAND     make "-j${DEP_MAX_THREADS}"
         INSTALL_COMMAND   make install
     )
 endif ()

@@ -1,0 +1,227 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Self-contained source installer. The compressed source follows this script.
+set -euo pipefail
+
+VERSION='@SLICER_VERSION@'
+SOURCE_SHA='@SOURCE_SHA@'
+PAYLOAD_SHA256='@PAYLOAD_SHA256@'
+ARCHIVE_SIZE='@ARCHIVE_SIZE@'
+PAYLOAD_OFFSET='@PAYLOAD_OFFSET@'
+
+fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
+usage() {
+    cat <<EOF
+Slicer $VERSION local native compiler and installer
+Usage: bash $(basename "$0") [options]
+
+  --profile native|aggressive   Native CPU tuning; aggressive also uses GCC PGO
+  --compiler PATH              C++ compiler (default: \$CXX or g++)
+  --jobs NUMBER                Parallel jobs (default: CPU and memory limit)
+  --build-dir PATH             Persistent source, compiler state and packages
+  --no-install                 Build and test a local .deb without installing it
+  --install-prerequisites       Explicitly allow APT to install host build tools
+  --skip-tests                 Skip final tests (PGO training still runs)
+  --extract-only DIR           Verify and extract sources only into an empty DIR
+  --dry-run                    Print prerequisites and build plan without changes
+  --metadata                   Print embedded version, source and payload hashes
+  -h, --help                   Show this help without extracting sources
+
+All slicing libraries and their source licences are embedded. APT is used only
+for host development packages when requested and the final local .deb install.
+Compilation runs as your regular user. The resulting machine-specific .deb is
+for this computer; use the portable release .deb on other machines.
+EOF
+}
+
+profile=native
+compiler=${CXX:-g++}
+jobs=$(nproc 2>/dev/null || printf '2')
+if [[ -r /proc/meminfo ]]; then
+    memory_jobs=$(awk '/^MemAvailable:/ {n=int($2/3145728); print (n > 0 ? n : 1)}' /proc/meminfo)
+    if [[ "$memory_jobs" =~ ^[1-9][0-9]*$ ]] && ((memory_jobs < jobs)); then
+        jobs=$memory_jobs
+    fi
+fi
+build_dir=
+extract_dir=
+no_install=0
+install_prerequisites=0
+skip_tests=0
+dry_run=0
+metadata=0
+while (($#)); do
+    case "$1" in
+        --profile|--compiler|--jobs|--build-dir|--extract-only)
+            (($# >= 2)) || fail "$1 requires a value"
+            [[ -n "$2" ]] || fail "$1 requires a nonempty value"
+            case "$1" in
+                --profile) profile=$2 ;;
+                --compiler) compiler=$2 ;;
+                --jobs) jobs=$2 ;;
+                --build-dir) build_dir=$2 ;;
+                --extract-only) extract_dir=$2 ;;
+            esac
+            shift 2 ;;
+        --no-install) no_install=1; shift ;;
+        --install-prerequisites) install_prerequisites=1; shift ;;
+        --skip-tests) skip_tests=1; shift ;;
+        --dry-run) dry_run=1; shift ;;
+        --metadata) metadata=1; shift ;;
+        -h|--help) usage; exit 0 ;;
+        *) fail "unknown option: $1" ;;
+    esac
+done
+[[ "$profile" == native || "$profile" == aggressive ]] || fail "profile must be native or aggressive"
+[[ "$jobs" =~ ^[1-9][0-9]*$ ]] || fail "--jobs must be a positive integer"
+if ((metadata)); then
+    printf '{"version":"%s","source_sha":"%s","payload_sha256":"%s","archive_size":%s}\n' \
+        "$VERSION" "$SOURCE_SHA" "$PAYLOAD_SHA256" "$ARCHIVE_SIZE"
+    exit 0
+fi
+
+build_dir=${build_dir:-${XDG_CACHE_HOME:-$HOME/.cache}/Infiltrator/Slicer/$VERSION-${SOURCE_SHA:0:12}-$profile}
+case "$build_dir" in /*) ;; *) build_dir="$PWD/$build_dir" ;; esac
+source_dir="$build_dir/source"
+build_root="$build_dir/build"
+stage="$build_dir/stage"
+packages="$build_dir/packages"
+artifact="$packages/infiltrator-slicer_${VERSION}_amd64.deb"
+prerequisites=(autoconf automake build-essential cmake dpkg-dev git python3 perl pkg-config
+    libdbus-1-dev libglu1-mesa-dev libgtk-3-dev libhidapi-dev libwebkit2gtk-4.1-dev
+    texinfo xauth xvfb)
+print_command() { printf ' '; printf '%q ' "$@"; printf '\n'; }
+if ((dry_run)); then
+    printf 'Slicer %s; source %s\nPayload SHA256: %s\nProfile: %s\nBuild directory: %s\n' \
+        "$VERSION" "$SOURCE_SHA" "$PAYLOAD_SHA256" "$profile" "$build_dir"
+    printf 'Host prerequisite command (only run with --install-prerequisites):\n'
+    print_command sudo apt-get install --no-install-recommends "${prerequisites[@]}"
+    printf 'Verify and extract embedded source and dependency archives; no library source downloads.\nBuild command:\n'
+    plan=(bash "$source_dir/support/build-native.sh" --profile "$profile" --compiler "$compiler"
+        --jobs "$jobs" --build-root "$build_root" --stage-dir "$stage" --install-prefix /usr)
+    ((skip_tests)) && plan+=(--skip-tests)
+    print_command "${plan[@]}"
+    printf 'Package: %s\n' "$artifact"
+    if ((no_install)); then printf 'Installation disabled (--no-install).\n';
+    else printf 'Install command:\n'; print_command sudo apt install "$artifact"; fi
+    exit 0
+fi
+
+self=$(realpath -- "$0")
+payload_file=
+extract_temporary=
+# shellcheck disable=SC2317 # Invoked by the EXIT trap.
+cleanup() {
+    [[ -z "$payload_file" ]] || rm -f -- "$payload_file"
+    [[ -z "$extract_temporary" ]] || rm -rf -- "$extract_temporary"
+}
+trap cleanup EXIT
+extract_source() {
+    local destination=$1
+    command -v sha256sum >/dev/null || fail "sha256sum is required for source verification"
+    command -v tar >/dev/null || fail "tar is required for source extraction"
+    if [[ -e "$destination" && (! -d "$destination" || -n "$(find "$destination" -mindepth 1 -maxdepth 1 -print -quit)") ]]; then
+        fail "extraction directory must be empty: $destination"
+    fi
+    payload_file=$(mktemp "${TMPDIR:-/tmp}/slicer-source.XXXXXX.tar.gz")
+    # Strip leading zeros: tail parses the offset as decimal, Bash arithmetic may not.
+    local offset
+    offset=$(printf '%s' "$PAYLOAD_OFFSET" | sed 's/^0*//')
+    tail -c "+$offset" -- "$self" > "$payload_file"
+    [[ "$(wc -c < "$payload_file")" == "$ARCHIVE_SIZE" ]] || fail "embedded payload size mismatch"
+    [[ "$(sha256sum "$payload_file" | cut -d ' ' -f 1)" == "$PAYLOAD_SHA256" ]] || fail "embedded payload SHA256 mismatch"
+    mkdir -p -- "$(dirname -- "$destination")"
+    extract_temporary=$(mktemp -d "$(dirname -- "$destination")/.slicer-extract.XXXXXX")
+    tar -xzf "$payload_file" --no-same-owner -C "$extract_temporary"
+    [[ -f "$extract_temporary/support/VERSION" && -f "$extract_temporary/support/build-native.sh" && -f "$extract_temporary/LICENSE" ]] ||
+        fail "embedded source is incomplete"
+    [[ "$(tr -d '[:space:]' < "$extract_temporary/support/VERSION")" == "$VERSION" ]] || fail "embedded source version mismatch"
+    printf '%s\n' "$SOURCE_SHA" > "$extract_temporary/.slicer-source-sha"
+    [[ ! -d "$destination" ]] || rmdir -- "$destination"
+    mv -- "$extract_temporary" "$destination"
+    extract_temporary=
+    rm -f -- "$payload_file"
+    payload_file=
+}
+if [[ -n "$extract_dir" ]]; then
+    extract_source "$extract_dir"
+    printf 'Verified Slicer %s sources extracted to %s\n' "$VERSION" "$extract_dir"
+    exit 0
+fi
+
+[[ "$(id -u)" != 0 ]] || fail "run as your regular user; sudo is requested only for APT installation"
+[[ -r /etc/debian_version ]] || fail "this installer currently supports Debian-family Linux"
+command -v dpkg >/dev/null || fail "dpkg is required"
+[[ "$(dpkg --print-architecture)" == amd64 ]] || fail "this installer currently supports Debian amd64"
+missing=()
+for package in "${prerequisites[@]}"; do
+    if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+        missing+=("$package")
+    fi
+done
+if ((${#missing[@]})); then
+    printf 'Missing host development packages:\n'
+    print_command sudo apt-get install --no-install-recommends "${missing[@]}"
+    if ((!install_prerequisites)); then
+        fail "install these prerequisites, or rerun with --install-prerequisites"
+    fi
+    sudo apt-get update
+    sudo apt-get install --no-install-recommends "${missing[@]}"
+fi
+command -v "$compiler" >/dev/null || fail "C++ compiler not found: $compiler"
+if [[ -d "$source_dir" ]]; then
+    [[ -f "$source_dir/.slicer-source-sha" && "$(cat "$source_dir/.slicer-source-sha")" == "$SOURCE_SHA" ]] ||
+        fail "build directory contains another source; choose another --build-dir"
+else
+    extract_source "$source_dir"
+fi
+
+driver=(bash support/build-native.sh --profile "$profile" --compiler "$compiler" --jobs "$jobs"
+    --build-root "$build_root" --stage-dir "$stage" --install-prefix /usr)
+((skip_tests)) && driver+=(--skip-tests)
+(cd "$source_dir"; "${driver[@]}")
+[[ -x "$stage/usr/bin/slicer" ]] || fail "native driver did not stage /usr/bin/slicer"
+metadata_dir="$build_dir/package-meta"
+mkdir -p "$metadata_dir/debian" "$packages" "$stage/DEBIAN"
+cat > "$metadata_dir/debian/control" <<EOF
+Source: infiltrator-slicer
+Section: graphics
+Priority: optional
+Maintainer: Infiltrator Projects
+
+Package: infiltrator-slicer
+Architecture: amd64
+Description: Infiltrator Slicer
+ Slicer converts 3D models into printer toolpaths and G-code.
+EOF
+depends=$(cd "$metadata_dir"; dpkg-shlibdeps -O -e"$stage/usr/bin/slicer" | sed -n 's/^shlibs:Depends=//p')
+[[ -n "$depends" ]] || fail "dpkg-shlibdeps produced no runtime dependency set"
+installed_size=$(du -sk "$stage" | awk '{print $1}')
+cat > "$stage/DEBIAN/control" <<EOF
+Package: infiltrator-slicer
+Version: $VERSION
+Section: graphics
+Priority: optional
+Architecture: amd64
+Maintainer: Infiltrator Projects
+Homepage: https://github.com/Infiltrator-Projects/Slicer
+Depends: $depends
+Conflicts: prusa-slicer
+Replaces: prusa-slicer
+Installed-Size: $installed_size
+X-Slicer-Build-Profile: $profile
+X-Slicer-Source-SHA: $SOURCE_SHA
+Description: Infiltrator Slicer (locally compiled for this CPU)
+ Slicer converts 3D models into printer toolpaths and G-code.
+ This package uses hardware-specific optimisation for the local computer.
+EOF
+dpkg-deb --root-owner-group --build "$stage" "$artifact"
+[[ "$(dpkg-deb -f "$artifact" Package)" == infiltrator-slicer ]] || fail "incorrect native package name"
+[[ "$(dpkg-deb -f "$artifact" Version)" == "$VERSION" ]] || fail "incorrect native package version"
+[[ "$(dpkg-deb -f "$artifact" Architecture)" == amd64 ]] || fail "incorrect native package architecture"
+printf 'Native package built: %s\n' "$artifact"
+if ((!no_install)); then
+    sudo apt install "$artifact"
+fi
+exit 0
+# __SLICER_EMBEDDED_SOURCE_FOLLOWS__

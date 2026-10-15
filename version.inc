@@ -2,7 +2,7 @@
 # Release helpers verify SLIC3R_VERSION against support/VERSION before building.
 set(SLIC3R_APP_NAME "Slicer")
 set(SLIC3R_APP_KEY "InfiltratorSlicer")
-set(SLIC3R_VERSION "0.0.1")
+set(SLIC3R_VERSION "0.0.2")
 # Printer profile/schema compatibility follows the inherited slicing engine.
 set(SLIC3R_COMPATIBILITY_VERSION "2.9.6")
 set(SLIC3R_BUILD_ID "${SLIC3R_APP_NAME}-${SLIC3R_VERSION}")

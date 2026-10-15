@@ -1,6 +1,13 @@
 
 include(ProcessorCount)
 ProcessorCount(NPROC)
+if (DEP_MAX_THREADS)
+    set(NPROC "${DEP_MAX_THREADS}")
+elseif (NPROC EQUAL 0)
+    set(NPROC 1)
+endif ()
+
+string(TOUPPER "${CMAKE_BUILD_TYPE}" _openssl_buildtype_upper)
 
 set(_conf_cmd "./config")
 set(_cross_arch "")
@@ -26,7 +33,10 @@ ExternalProject_Add(dep_OpenSSL
     URL_HASH SHA256=e2acf0cf58d9bff2b42f2dc0aee79340c8ffe2c5e45d3ca4533dd5d4f5775b1d
     DOWNLOAD_DIR ${${PROJECT_NAME}_DEP_DOWNLOAD_DIR}/OpenSSL
     BUILD_IN_SOURCE ON
-    CONFIGURE_COMMAND ${_conf_cmd} ${_cross_arch}
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env
+        "CC=${CMAKE_C_COMPILER}"
+        "CFLAGS=${CMAKE_C_FLAGS_${_openssl_buildtype_upper}}"
+        ${_conf_cmd} ${_cross_arch}
         "--prefix=${${PROJECT_NAME}_DEP_INSTALL_PREFIX}"
         ${_cross_comp_prefix_line}
         no-shared
