@@ -9,20 +9,19 @@ on:
       platform:
         description: Platform to build and qualify
         type: choice
-        options: [all, linux, windows, windows-diagnostics]
+        options: [all, linux, windows]
         default: all
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-self-hosted-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
+  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
   cancel-in-progress: true
 
 jobs:
   source:
     name: Verify release contract
-    if: inputs.platform != 'windows-diagnostics'
     runs-on: [self-hosted, Linux, X64, linux-native]
     timeout-minutes: 10
     steps:
@@ -92,9 +91,9 @@ jobs:
         run: |
           set -euo pipefail
           printf 'Runner: %s (%s/%s)\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
-          packages=(autoconf build-essential cmake dpkg-dev git python3 perl
+          packages=(autoconf build-essential cmake dpkg-dev git python3 perl pkg-config
             libdbus-1-dev libglu1-mesa-dev libgtk-3-dev
-            libwebkit2gtk-4.1-dev texinfo xauth xvfb)
+            libhidapi-dev libwebkit2gtk-4.1-dev texinfo xauth xvfb)
           missing=()
           for package in "${packages[@]}"; do
             if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
@@ -151,19 +150,14 @@ jobs:
     name: Build and qualify Windows .exe
     needs: source
     if: github.event_name != 'workflow_dispatch' || inputs.platform != 'linux'
-    # The user's Windows fleet is ARM64. Build the existing x64 product with
-    # its Visual Studio cross compiler and verify executable launch first.
-    runs-on: [self-hosted, Windows, ARM64]
+    # Use the hosted VS2022 toolchain for the Windows x64 release.
+    runs-on: windows-2022
     timeout-minutes: 120
     steps:
       - name: Check out exact verified source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
-
-      - name: Set up native Windows Python
-        shell: pwsh
-        run: '& ./support/windows/prepare-python.ps1'
 
       - name: Check Windows runner and x64 toolchain
         shell: pwsh
@@ -220,50 +214,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Clean temporary Windows Python
-        if: always()
-        shell: pwsh
-        run: |
-          if ($env:SLICER_PYTHON_ROOT -and (Test-Path -LiteralPath $env:SLICER_PYTHON_ROOT)) {
-              Remove-Item -LiteralPath $env:SLICER_PYTHON_ROOT -Recurse -Force
-          }
-
-  windows-diagnostics:
-    name: Diagnose Windows executable launch
-    if: inputs.platform == 'windows-diagnostics'
-    runs-on: [self-hosted, Windows, ARM64]
-    timeout-minutes: 5
-    steps:
-      - name: Read security products and Slicer launch events
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          Write-Host "Runner: $env:RUNNER_NAME"
-          try {
-              Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct |
-                  Select-Object displayName, productState | Format-Table -AutoSize
-          } catch { Write-Host "Security product inventory unavailable: $($_.Exception.Message)" }
-          try {
-              Get-MpComputerStatus | Select-Object AMRunningMode, AntivirusEnabled, RealTimeProtectionEnabled, SmartAppControlState | Format-List
-              Get-MpPreference | Select-Object AttackSurfaceReductionRules_Ids, AttackSurfaceReductionRules_Actions | Format-List
-          } catch { Write-Host "Defender status unavailable: $($_.Exception.Message)" }
-          foreach ($LogName in @('Microsoft-Windows-CodeIntegrity/Operational',
-              'Microsoft-Windows-AppLocker/EXE and DLL',
-              'Microsoft-Windows-Windows Defender/Operational', 'Application')) {
-              try {
-                  $Events = Get-WinEvent -FilterHashtable @{LogName=$LogName; StartTime=(Get-Date).AddMinutes(-30)} -MaxEvents 200
-                  $Matches = @($Events | Where-Object {
-                      ([string]$_.Message + $_.ToXml()).IndexOf('slicer-x64-probe-', [StringComparison]::OrdinalIgnoreCase) -ge 0
-                  } | Select-Object -First 5)
-                  Write-Host "Matching Slicer probe events in ${LogName}: $($Matches.Count)"
-                  foreach ($Event in $Matches) {
-                      Write-Host "Event $($Event.Id); $($Event.TimeCreated.ToString('o'))"
-                      Write-Host $Event.Message
-                      Write-Host ($Event.ToXml())
-                  }
-              } catch { Write-Host "Event lookup unavailable for ${LogName}: $($_.Exception.Message)" }
-          }
-
   release-assets:
     name: Seal exact qualified release assets
     needs: [linux-release, windows-release]
@@ -294,7 +244,7 @@ jobs:
           expected_deb="infiltrator-slicer_${version}_amd64.deb"
           expected_windows="slicer-${version}-windows.exe"
 
-          mapfile -t debs < <(find candidate-linux -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
+          mapfile -t debs < <(find candidate-linux/dist -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
           mapfile -t windows_apps < <(find candidate-windows -maxdepth 1 -type f -name '*.exe' -printf '%f\n' | sort)
           test "${#debs[@]}" -eq 1
           test "${#windows_apps[@]}" -eq 1
@@ -302,7 +252,7 @@ jobs:
           test "${windows_apps[0]}" = "$expected_windows"
 
           mkdir release
-          cp "candidate-linux/$expected_deb" "release/$expected_deb"
+          cp "candidate-linux/dist/$expected_deb" "release/$expected_deb"
           cp "candidate-windows/$expected_windows" "release/$expected_windows"
 
           test "$(dpkg-deb -f "release/$expected_deb" Package)" = "infiltrator-slicer"

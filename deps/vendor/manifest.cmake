@@ -1,5 +1,5 @@
 # Pinned upstream archives. Build code uses PARTS locally; URL records provenance only.
-set(SLICER_VENDOR_PACKAGES "Blosc;Boost;CGAL;CURL;Catch2;Cereal;EXPAT;Eigen;GLEW;GMP;JPEG;LibBGCode;MPFR;NLopt;NanoSVG;OCCT;OpenCSG;OpenEXR;OpenSSL;OpenVDB;PNG;Qhull;TBB;ZLIB;heatshrink;json;wxWidgets;z3;WebView2;PythonWindowsARM64")
+set(SLICER_VENDOR_PACKAGES "Blosc;Boost;CGAL;CURL;Catch2;Cereal;EXPAT;Eigen;GLEW;GMP;JPEG;LibBGCode;MPFR;NLopt;NanoSVG;OCCT;OpenCSG;OpenEXR;OpenSSL;OpenVDB;PNG;Qhull;TBB;ZLIB;heatshrink;json;wxWidgets;z3;WebView2")
 set(SLICER_VENDOR_Blosc_FILE "Blosc/8724c06e3da90f10986a253814af18ca081d8de0.zip")
 set(SLICER_VENDOR_Blosc_SHA256 "53986fd04210b3d94124b7967c857f9766353e576a69595a9393999e0712c035")
 set(SLICER_VENDOR_Blosc_PARTS "Blosc/8724c06e3da90f10986a253814af18ca081d8de0.zip")
@@ -144,8 +144,3 @@ set(SLICER_VENDOR_WebView2_FILE "WebView2/Microsoft.Web.WebView2.1.0.705.50.nupk
 set(SLICER_VENDOR_WebView2_SHA256 "6a34bb553e18cfac7297b4031f3eac2558e439f8d16a45945c22945ac404105d")
 set(SLICER_VENDOR_WebView2_PARTS "WebView2/Microsoft.Web.WebView2.1.0.705.50.nupkg")
 set(SLICER_VENDOR_WebView2_URL "https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/1.0.705.50")
-
-set(SLICER_VENDOR_PythonWindowsARM64_FILE "PythonWindowsARM64/python-3.13.16-embed-arm64.zip")
-set(SLICER_VENDOR_PythonWindowsARM64_SHA256 "790d097697a2020477549a6764d89d22194c88d6e42caebcb2db63791e004c94")
-set(SLICER_VENDOR_PythonWindowsARM64_PARTS "PythonWindowsARM64/python-3.13.16-embed-arm64.zip")
-set(SLICER_VENDOR_PythonWindowsARM64_URL "https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-arm64.zip")

@@ -55,64 +55,9 @@ function Get-SlicerVisualStudio {
 function Get-RequiredCommand([string]$Name) {
     $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue
     if ($null -eq $Command) {
-        throw "The self-hosted Windows runner is missing $Name."
+        throw "The Windows build runner is missing $Name."
     }
     return $Command
-}
-
-function Write-ProbeLaunchDiagnostics(
-    [string]$Executable,
-    [string]$Directory,
-    [System.Management.Automation.ErrorRecord]$Failure
-) {
-    # Read only the failed probe's permissions and matching recent policy
-    # events. Do not change ACLs, execution policy, or application controls.
-    $Exception = $Failure.Exception
-    while ($null -ne $Exception) {
-        Write-Host "Launch exception: $($Exception.GetType().FullName); HResult=0x$($Exception.HResult.ToString('X8')); $($Exception.Message)"
-        if ($Exception -is [System.ComponentModel.Win32Exception]) {
-            Write-Host "Win32 native error: $($Exception.NativeErrorCode)"
-        }
-        $Exception = $Exception.InnerException
-    }
-    foreach ($Path in @($Directory, $Executable)) {
-        try {
-            & icacls.exe $Path
-            if ($LASTEXITCODE -ne 0) {
-                Write-Host "icacls returned $LASTEXITCODE for $Path"
-            }
-        } catch {
-            Write-Host "icacls unavailable for ${Path}: $($_.Exception.Message)"
-        }
-    }
-    # The directory contains a per-probe GUID. Matching that token also works
-    # when events use a device path rather than a drive-letter path.
-    $ProbeToken = Split-Path -Path $Directory -Leaf
-    foreach ($LogName in @(
-        'Microsoft-Windows-CodeIntegrity/Operational',
-        'Microsoft-Windows-AppLocker/EXE and DLL',
-        'Microsoft-Windows-Windows Defender/Operational',
-        'Application'
-    )) {
-        try {
-            $Events = @(Get-WinEvent -FilterHashtable @{
-                LogName = $LogName
-                StartTime = (Get-Date).AddMinutes(-5)
-            } -MaxEvents 40 -ErrorAction Stop)
-            $Matching = @($Events | Where-Object {
-                $EventText = [string]$_.Message + "`n" + $_.ToXml()
-                $EventText.IndexOf($ProbeToken, [StringComparison]::OrdinalIgnoreCase) -ge 0
-            } | Select-Object -First 5)
-            Write-Host "Matching probe events in ${LogName}: $($Matching.Count)"
-            foreach ($Event in $Matching) {
-                Write-Host "Event $($Event.Id); $($Event.TimeCreated.ToString('o')); $($Event.ProviderName)"
-                Write-Host $Event.Message
-                Write-Host ($Event.ToXml())
-            }
-        } catch {
-            Write-Host "Probe event lookup unavailable for ${LogName}: $($_.Exception.Message)"
-        }
-    }
 }
 
 $Toolchain = Get-SlicerVisualStudio
@@ -149,7 +94,7 @@ foreach ($Name in @("python3.exe", "python.exe")) {
     }
 }
 if ($null -eq $Python) {
-    throw "Python 3 (python3.exe or python.exe) is required to verify vendored sources."
+    throw "Python 3 (python3.exe or python.exe) is required for z3 code generation."
 }
 
 $CmakeVersion = (& $Cmake.Source --version | Out-String).Trim()
@@ -219,14 +164,7 @@ exit /b %errorlevel%
                 throw "Probe exit code: $LASTEXITCODE"
             }
         } catch {
-            $LaunchFailure = $_
-            try {
-                Write-ProbeLaunchDiagnostics -Executable $ProbeExecutable -Directory $ProbeDirectory -Failure $LaunchFailure
-            } catch {
-                Write-Host "Additional probe diagnostics unavailable: $($_.Exception.Message)"
-            }
-            Write-Host "The runner cannot launch a freshly compiled x64 executable. The original launch failure follows."
-            throw $LaunchFailure
+            throw "The Windows runner cannot launch the freshly compiled x64 toolchain probe. $($_.Exception.Message)"
         }
     } finally {
         Pop-Location
