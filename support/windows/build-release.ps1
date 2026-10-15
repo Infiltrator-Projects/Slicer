@@ -37,8 +37,12 @@ if ($Match.Groups[1].Value -ne $Version) {
 }
 
 $DependencyPath = Resolve-BuildPath $DependencyDirectory
-Write-Host "Building Slicer $Version Windows release..."
+$Toolchain = & (Join-Path $PSScriptRoot "check-runner.ps1") -DiscoverOnly
+Write-Host "Building Slicer $Version Windows x64 release with $($Toolchain.Generator) $($Toolchain.Product)..."
 & (Join-Path $RepoRoot "build_win.bat") `
+    -a x64 `
+    -v $Toolchain.Major `
+    -PRODUCT $Toolchain.Product `
     -c Release `
     -s all `
     -r none `

@@ -71,14 +71,14 @@ SET PS_CONFIG_LIST="Debug;MinSizeRel;Release;RelWithDebInfo"
 REM Update this script for new versions by setting PS_VERSION_SUPPORTED to a
 REM new minimum version and setting PS_VERSION_EXCEEDED to the maximum supported
 REM version plus one.
-REM The officially supported toolchain versions are:
+REM Accepted toolchain versions (each release still requires CI qualification):
 REM   Minimum: 16 (Visual Studio 2019)
-REM   Maximum: 17 (Visual Studio 2022)
+REM   Maximum: 18 (Visual Studio 2026)
 SET PS_VERSION_SUPPORTED=16
-SET PS_VERSION_EXCEEDED=18
+SET PS_VERSION_EXCEEDED=19
 SET VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe
 IF NOT EXIST "%VSWHERE%" SET VSWHERE=%ProgramFiles%\Microsoft Visual Studio\Installer\vswhere.exe
-FOR /F "tokens=4 USEBACKQ delims=." %%I IN (`"%VSWHERE%" -nologo -property productId`) DO SET PS_PRODUCT_DEFAULT=%%I
+FOR /F "tokens=4 USEBACKQ delims=." %%I IN (`^""%VSWHERE%" -latest -products * -version "[%PS_VERSION_SUPPORTED%,%PS_VERSION_EXCEEDED%)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -nologo -property productId^"`) DO SET PS_PRODUCT_DEFAULT=%%I
 IF "%PS_PRODUCT_DEFAULT%" EQU "" (
     SET EXIT_STATUS=-1
     @ECHO ERROR: No Visual Studio installation found. 1>&2
@@ -86,13 +86,15 @@ IF "%PS_PRODUCT_DEFAULT%" EQU "" (
 )
 REM Default to the latest supported version if multiple are available
 FOR /F "tokens=1 USEBACKQ delims=." %%I IN (
-    `^""%VSWHERE%" -version "[%PS_VERSION_SUPPORTED%,%PS_VERSION_EXCEEDED%)" -latest -nologo -property catalog_buildVersion^"`
+    `^""%VSWHERE%" -products * -version "[%PS_VERSION_SUPPORTED%,%PS_VERSION_EXCEEDED%)" -latest -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -nologo -property catalog_buildVersion^"`
 ) DO SET PS_VERSION_SUPPORTED=%%I
 
 REM Probe build directories and system state for reasonable default arguments
 pushd %~dp0
 SET PS_CONFIG=RelWithDebInfo
-SET PS_ARCH=%PROCESSOR_ARCHITECTURE:amd64=x64%
+SET PS_ARCH=%PROCESSOR_ARCHITECTURE%
+IF DEFINED PROCESSOR_ARCHITEW6432 SET PS_ARCH=%PROCESSOR_ARCHITEW6432%
+SET PS_ARCH=%PS_ARCH:amd64=x64%
 CALL :TOLOWER PS_ARCH
 SET PS_RUN=none
 SET PS_DESTDIR=
@@ -167,7 +169,7 @@ IF "%PS_RUN%" NEQ "none" IF "%PS_STEPS:~0,4%" EQU "deps" (
 IF DEFINED PS_VERSION (
     SET /A PS_VERSION_EXCEEDED=%PS_VERSION% + 1
 ) ELSE SET PS_VERSION=%PS_VERSION_SUPPORTED%
-SET MSVC_FILTER=-products Microsoft.VisualStudio.Product.%PS_PRODUCT% -version "[%PS_VERSION%,%PS_VERSION_EXCEEDED%)"
+SET MSVC_FILTER=-latest -products Microsoft.VisualStudio.Product.%PS_PRODUCT% -version "[%PS_VERSION%,%PS_VERSION_EXCEEDED%)" -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64
 FOR /F "tokens=* USEBACKQ" %%I IN (`^""%VSWHERE%" %MSVC_FILTER% -nologo -property installationPath^"`) DO SET MSVC_DIR=%%I
 IF NOT EXIST "%MSVC_DIR%" (
     @ECHO ERROR: Compatible Visual Studio installation not found. 1>&2
@@ -196,6 +198,7 @@ SET PS_CURRENT_STEP=environment
 @ECHO ** Using Microsoft Visual Studio installation found at:
 @ECHO **  %MSVC_DIR%
 SET CMAKE_GENERATOR=Visual Studio %PS_VERSION% %PS_PRODUCT_VERSION%
+SET CMAKE_GENERATOR_PLATFORM=%PS_ARCH%
 CALL "%MSVC_DIR%\Common7\Tools\vsdevcmd.bat" -arch=%PS_ARCH% -host_arch=%PS_ARCH_HOST% -app_platform=Desktop
 IF %ERRORLEVEL% NEQ 0 GOTO :END
 REM Need to reset the echo state after vsdevcmd.bat clobbers it.
@@ -215,9 +218,11 @@ IF "%PS_STEPS_DIRTY%" EQU "" (
     CALL :MAKE_OR_CLEAN_DIRECTORY "%PS_DESTDIR%"
 )
 cd deps\build || GOTO :END
-cmake.exe .. -DDESTDIR="%PS_DESTDIR%"
+SET PS_DEP_DEBUG=OFF
+IF /I "%PS_CONFIG%" EQU "Debug" SET PS_DEP_DEBUG=ON
+cmake.exe .. -DDESTDIR="%PS_DESTDIR%" -DDEP_DEBUG=%PS_DEP_DEBUG%
 IF %ERRORLEVEL% NEQ 0 IF "%PS_STEPS_DIRTY%" NEQ "" (
-    (del CMakeCache.txt && cmake.exe .. -DDESTDIR="%PS_DESTDIR%") || GOTO :END
+    (del CMakeCache.txt && cmake.exe .. -DDESTDIR="%PS_DESTDIR%" -DDEP_DEBUG=%PS_DEP_DEBUG%) || GOTO :END
 ) ELSE GOTO :END
 (echo %PS_DESTDIR%)> "%PS_DEPS_PATH_FILE%"
 msbuild /m ALL_BUILD.vcxproj /p:Configuration=%PS_CONFIG% /v:quiet %PS_PRIORITY% || GOTO :END
