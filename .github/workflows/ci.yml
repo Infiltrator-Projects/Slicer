@@ -154,6 +154,10 @@ jobs:
 
       - name: Set up native Windows Python
         uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        env:
+          # setup-python invokes Windows PowerShell without a policy argument.
+          # Permit its local setup script for this process only.
+          PSExecutionPolicyPreference: RemoteSigned
         with:
           python-version: '3.13'
           architecture: arm64
