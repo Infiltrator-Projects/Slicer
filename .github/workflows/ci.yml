@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
@@ -29,6 +30,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          clean: false
+
+      - name: Clean source while retaining Linux compiler state
+        run: git clean -ffdx -e /build/
 
       - name: Validate version and repository-owned build machinery
         shell: bash
@@ -43,6 +48,7 @@ jobs:
 
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
+          python3 support/linux/verify-staging.py
           python3 support/verify-vendor.py
 
           if grep -REn --include='*.yml' --include='*.yaml' \
@@ -85,6 +91,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          clean: false
+
+      - name: Clean source while retaining Linux compiler state
+        run: git clean -ffdx -e /build/
 
       - name: Prepare self-hosted Linux build prerequisites
         env:
@@ -114,10 +124,33 @@ jobs:
           fi
 
       - name: Build release package once
+        env:
+          REUSE_WORKSPACE: ${{ vars.SLICER_LINUX_REUSE_WORKSPACE }}
         shell: bash
         run: |
           set -euo pipefail
-          support/linux/build-deb.sh --clean --jobs "$(nproc)"
+          build_source="$GITHUB_WORKSPACE"
+          if [[ -n "$REUSE_WORKSPACE" ]]; then
+            test -d "$REUSE_WORKSPACE/.git"
+            origin=$(git -C "$REUSE_WORKSPACE" remote get-url origin)
+            [[ "${origin%.git}" == "https://github.com/$GITHUB_REPOSITORY" ]]
+            cache="$REUSE_WORKSPACE/build/release-linux/app/CMakeCache.txt"
+            test -f "$cache"
+            grep -Fx "CMAKE_HOME_DIRECTORY:INTERNAL=$REUSE_WORKSPACE" "$cache"
+            git -C "$REUSE_WORKSPACE" fetch --no-tags origin "$GITHUB_SHA"
+            git -C "$REUSE_WORKSPACE" checkout --force --detach "$GITHUB_SHA"
+            git -C "$REUSE_WORKSPACE" clean -ffdx -e /build/
+            build_source="$REUSE_WORKSPACE"
+          fi
+          (
+            cd "$build_source"
+            support/linux/build-deb.sh --jobs "$(nproc)"
+          )
+          if [[ "$build_source" != "$GITHUB_WORKSPACE" ]]; then
+            version=$(tr -d '[:space:]' < support/VERSION)
+            mkdir -p dist
+            cp "$build_source/dist/infiltrator-slicer_${version}_amd64.deb" dist/
+          fi
 
       - name: Qualify exact Debian package
         shell: bash
@@ -162,7 +195,76 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Validate optional qualified Windows candidate reuse
+        id: windows-reuse
+        if: vars.SLICER_REUSE_WINDOWS_RUN != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFIED_RUN: ${{ vars.SLICER_REUSE_WINDOWS_RUN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:QUALIFIED_RUN -notmatch '^[0-9]+$') { throw 'Invalid qualified Windows run ID.' }
+          function Read-GitHubJson([string]$Path) {
+              $Json = & gh api $Path
+              if ($LASTEXITCODE -ne 0) { throw "GitHub qualification query failed: $Path" }
+              return ($Json | ConvertFrom-Json)
+          }
+          $Repo = $env:GITHUB_REPOSITORY
+          $Run = Read-GitHubJson "repos/$Repo/actions/runs/$env:QUALIFIED_RUN"
+          if ($Run.event -ne 'push' -or $Run.head_branch -ne 'main' -or
+              $Run.head_repository.full_name -ne $Repo -or $Run.path -ne '.github/workflows/ci.yml' -or
+              $Run.status -ne 'completed') { throw 'Windows candidate must come from a completed main Verify run.' }
+          $Jobs = Read-GitHubJson "repos/$Repo/actions/runs/$env:QUALIFIED_RUN/jobs?filter=latest&per_page=100"
+          foreach ($Name in @('Verify release contract', 'Build and qualify Windows .exe')) {
+              $QualifiedJobs = @($Jobs.jobs | Where-Object { $_.name -eq $Name })
+              if ($QualifiedJobs.Count -ne 1 -or $QualifiedJobs[0].conclusion -ne 'success') {
+                  throw "Original Windows qualification is incomplete: $Name"
+              }
+          }
+          function Assert-WindowsSourcesUnchanged($Comparison) {
+              if ($Comparison.status -notin @('ahead', 'identical') -or $Comparison.files.Count -ge 300) {
+                  throw 'Cannot establish complete ancestor/source equivalence for Windows.'
+              }
+              foreach ($File in $Comparison.files) {
+                  foreach ($Path in @($File.filename, $File.previous_filename)) {
+                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/)') {
+                          throw "Windows product/build source changed: $Path"
+                      }
+                  }
+              }
+          }
+          # Exercise the same predicate before it authorizes artifact reuse.
+          Assert-WindowsSourcesUnchanged ([pscustomobject]@{ status='ahead'; files=@(
+              [pscustomobject]@{ filename='support/linux/build-deb.sh' },
+              [pscustomobject]@{ filename='.github/workflows/ci.yml' }) })
+          foreach ($Unsafe in @(
+              [pscustomobject]@{ status='behind'; files=@() },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='version.inc' }) },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/windows/build-release.ps1' }) },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/linux/moved.cpp'; previous_filename='src/PrusaSlicer.cpp' }) },
+              [pscustomobject]@{ status='ahead'; files=@(1..300 | ForEach-Object { [pscustomobject]@{ filename='support/linux/fixture' } }) }
+          )) {
+              $Rejected = $false
+              try { Assert-WindowsSourcesUnchanged $Unsafe } catch { $Rejected = $true }
+              if (-not $Rejected) { throw 'Unsafe Windows source comparison was accepted.' }
+          }
+          $Comparison = Read-GitHubJson "repos/$Repo/compare/$($Run.head_sha)...$env:GITHUB_SHA"
+          Assert-WindowsSourcesUnchanged $Comparison
+          Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging/workflow files changed."
+          "reused=true" >> $env:GITHUB_OUTPUT
+
+      - name: Download qualified Windows candidate for Linux-only recovery
+        if: steps.windows-reuse.outputs.reused == 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ vars.SLICER_REUSE_WINDOWS_RUN }}
+          name: slicer-windows-release
+          path: dist
+
       - name: Check Windows runner and x64 toolchain
+        if: steps.windows-reuse.outputs.reused != 'true'
         id: windows-toolchain
         shell: pwsh
         run: |
@@ -173,6 +275,7 @@ jobs:
           "image-version=$env:ImageVersion" >> $env:GITHUB_OUTPUT
 
       - name: Ensure Inno Setup 6 is available
+        if: steps.windows-reuse.outputs.reused != 'true'
         shell: pwsh
         run: |
           if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
@@ -181,6 +284,7 @@ jobs:
           }
 
       - name: Validate installer source before the long build
+        if: steps.windows-reuse.outputs.reused != 'true'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -202,6 +306,7 @@ jobs:
           }
 
       - name: Restore matching Windows dependencies
+        if: steps.windows-reuse.outputs.reused != 'true'
         id: windows-deps-cache
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -211,7 +316,7 @@ jobs:
 
       - name: Build Windows dependencies on cache miss
         id: windows-deps-build
-        if: steps.windows-deps-cache.outputs.cache-hit != 'true'
+        if: steps.windows-reuse.outputs.reused != 'true' && steps.windows-deps-cache.outputs.cache-hit != 'true'
         shell: pwsh
         run: '& ./support/windows/build-release.ps1 -DependenciesOnly'
 
@@ -224,6 +329,7 @@ jobs:
           key: ${{ steps.windows-deps-cache.outputs.cache-primary-key }}
 
       - name: Build Windows release installer once
+        if: steps.windows-reuse.outputs.reused != 'true'
         shell: pwsh
         run: '& ./support/windows/build-release.ps1 -UseCachedDependencies'
 

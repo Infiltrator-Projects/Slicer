@@ -127,6 +127,7 @@ cmake -S deps -B "$deps_build" \
 cmake --build "$deps_build" --parallel 1
 
 cmake -S . -B "$app_build" \
+    -DCMAKE_POLICY_DEFAULT_CMP0087=NEW \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DSLIC3R_STATIC=ON \
