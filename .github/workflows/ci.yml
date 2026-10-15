@@ -94,6 +94,13 @@ jobs:
             fi
           done
           if ((${#missing[@]})); then
+            printf 'Missing build packages: %s\n' "${missing[*]}"
+            if ! sudo -n true 2>/dev/null; then
+              printf 'One-time setup required on this Linux host: sudo apt-get install -y --no-install-recommends'
+              printf ' %q' "${missing[@]}"
+              printf '\nRun that command in an administrator terminal on this host, then rerun Verify.\n' >&2
+              exit 1
+            fi
             sudo -n apt-get update
             sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
           fi
@@ -144,6 +151,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 1
+
+      - name: Set up native Windows Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          architecture: arm64
 
       - name: Check Windows runner and x64 toolchain
         shell: pwsh

@@ -32,7 +32,12 @@ function Get-SlicerVisualStudio {
     $Installation = $Installations[0]
     $Major = ([version]$Installation.installationVersion).Major
     $Product = ($Installation.productId -split '\.')[-1]
-    $ProductLine = [string]$Installation.catalog.productLineVersion
+    $ProductLine = switch ($Major) {
+        16 { "2019" }
+        17 { "2022" }
+        18 { "2026" }
+        default { throw "Unsupported Visual Studio major version: $Major" }
+    }
     $DevCmd = Join-Path $Installation.installationPath "Common7\Tools\VsDevCmd.bat"
     if (-not (Test-Path $DevCmd -PathType Leaf)) {
         throw "The selected Visual Studio installation is missing VsDevCmd.bat: $DevCmd"
