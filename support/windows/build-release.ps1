@@ -2,7 +2,9 @@
 [CmdletBinding()]
 param(
     [string]$OutputDirectory = "dist",
-    [string]$DependencyDirectory = "deps\build\release-windows-deps"
+    [string]$DependencyDirectory = "deps\build\release-windows-deps",
+    [switch]$UseCachedDependencies,
+    [switch]$DependenciesOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,12 +49,44 @@ if ($DependencyPath.Equals($AppBuildPath, [StringComparison]::OrdinalIgnoreCase)
 }
 $Toolchain = & (Join-Path $PSScriptRoot "check-runner.ps1") -DiscoverOnly
 Write-Host "Building Slicer $Version Windows x64 release with $($Toolchain.Generator) $($Toolchain.Product)..."
+$DependencyStamp = Join-Path $DependencyPath '.release-dependencies-complete'
+if ($UseCachedDependencies) {
+    if (-not (Test-Path -LiteralPath $DependencyStamp -PathType Leaf)) {
+        Fail "Cached dependencies are incomplete: $DependencyPath"
+    }
+    # The batch driver requires this workspace-local path record even when
+    # the installed dependency prefix came from the CI cache.
+    Set-Content -LiteralPath (Join-Path $RepoRoot 'deps\build\.DEPS_PATH.txt') `
+        -Value $DependencyPath -Encoding ascii
+    Write-Host 'Reusing the exact cached Windows x64 Release dependencies.'
+}
+else {
+    & (Join-Path $RepoRoot "build_win.bat") `
+        -a x64 `
+        -v $Toolchain.Major `
+        -PRODUCT $Toolchain.Product `
+        -c Release `
+        -s deps `
+        -r none `
+        -d $DependencyPath
+    if ($LASTEXITCODE -ne 0) {
+        Fail "Windows dependency build failed with exit code $LASTEXITCODE."
+    }
+    if (-not (Test-Path (Join-Path $DependencyPath 'usr\local\lib') -PathType Container)) {
+        Fail "Windows dependency build did not produce its library prefix."
+    }
+    Set-Content -LiteralPath $DependencyStamp -Value 'Windows x64 Release dependency build completed.'
+}
+if ($DependenciesOnly) {
+    return
+}
+
 & (Join-Path $RepoRoot "build_win.bat") `
     -a x64 `
     -v $Toolchain.Major `
     -PRODUCT $Toolchain.Product `
     -c Release `
-    -s all `
+    -s app `
     -r none `
     -d $DependencyPath
 if ($LASTEXITCODE -ne 0) {

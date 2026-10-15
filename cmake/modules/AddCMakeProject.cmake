@@ -66,6 +66,20 @@ function(add_cmake_project projectname)
     if (CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
         set(_legacy_policy_args -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5)
     endif ()
+    set(_msvc_runtime_args "")
+    if (MSVC)
+        # The parent uses CMP0091 NEW, so its config flags no longer contain
+        # /MD. Legacy dependencies must use the same runtime abstraction or
+        # their inherited flags leave cl.exe defaulting to the static CRT.
+        # This wrapper builds CMAKE_BUILD_TYPE even for a multi-config parent.
+        set(_msvc_runtime_library MultiThreadedDLL)
+        if (_build_type_upper STREQUAL DEBUG)
+            set(_msvc_runtime_library MultiThreadedDebugDLL)
+        endif ()
+        set(_msvc_runtime_args
+            -DCMAKE_POLICY_DEFAULT_CMP0091:STRING=NEW
+            -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING=${_msvc_runtime_library})
+    endif ()
     if (${PROJECT_NAME}_DEP_BUILD_VERBOSE)
         if (CMAKE_GENERATOR MATCHES "Ninja")
             set(_verbose_switch "--verbose")
@@ -94,6 +108,7 @@ function(add_cmake_project projectname)
             "${_configs_line}"
             ${DEP_CMAKE_OPTS}
             ${_legacy_policy_args}
+            ${_msvc_runtime_args}
             ${P_ARGS_CMAKE_ARGS}
        ${P_ARGS_UNPARSED_ARGUMENTS}
        BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} -- ${_build_j} ${_verbose_switch}

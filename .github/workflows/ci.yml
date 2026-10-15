@@ -154,7 +154,7 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.platform != 'linux'
     # Use the hosted VS2022 toolchain for the Windows x64 release.
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 240
     steps:
       - name: Check out exact verified source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -162,8 +162,14 @@ jobs:
           fetch-depth: 1
 
       - name: Check Windows runner and x64 toolchain
+        id: windows-toolchain
         shell: pwsh
-        run: '& ./support/windows/check-runner.ps1'
+        run: |
+          & ./support/windows/check-runner.ps1
+          if ([string]::IsNullOrWhiteSpace($env:ImageVersion)) {
+              throw 'The hosted Windows image version is required for the dependency cache key.'
+          }
+          "image-version=$env:ImageVersion" >> $env:GITHUB_OUTPUT
 
       - name: Ensure Inno Setup 6 is available
         shell: pwsh
@@ -194,9 +200,31 @@ jobs:
               if (Test-Path $Fixture) { Remove-Item $Fixture -Recurse -Force }
           }
 
+      - name: Restore matching Windows dependencies
+        id: windows-deps-cache
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: deps/build/release-windows-deps
+          key: windows-2022-x64-release-v1-${{ steps.windows-toolchain.outputs.image-version }}-${{ hashFiles('deps/**', 'cmake/**', 'build_win.bat') }}
+
+      - name: Build Windows dependencies on cache miss
+        id: windows-deps-build
+        if: steps.windows-deps-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: '& ./support/windows/build-release.ps1 -DependenciesOnly'
+
+      - name: Save completed Windows dependencies
+        if: ${{ success() && steps.windows-deps-build.outcome == 'success' && steps.windows-deps-cache.outputs.cache-primary-key != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: deps/build/release-windows-deps
+          key: ${{ steps.windows-deps-cache.outputs.cache-primary-key }}
+
       - name: Build Windows release installer once
         shell: pwsh
-        run: '& ./support/windows/build-release.ps1'
+        run: '& ./support/windows/build-release.ps1 -UseCachedDependencies'
 
       - name: Qualify exact Windows executable
         shell: pwsh
