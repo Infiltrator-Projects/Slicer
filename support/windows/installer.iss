@@ -15,6 +15,7 @@
 
 [Setup]
 AppId={code:GetInstallAppId}
+UsePreviousLanguage=no
 AppName={#MyAppName}
 AppVersion={#AppVersion}
 AppPublisher={#MyPublisher}
