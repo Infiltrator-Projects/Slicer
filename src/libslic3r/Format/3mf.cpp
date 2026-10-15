@@ -2277,6 +2277,12 @@ namespace Slic3r {
             // SLIC3R_APP_KEY - SLIC3R_VERSION
             if (boost::starts_with(m_curr_characters, "PrusaSlicer-"))
                 m_prusaslicer_generator_version = Semver::parse(m_curr_characters.substr(12));
+            else if (boost::starts_with(m_curr_characters, SLIC3R_APP_KEY "-"))
+                m_prusaslicer_generator_version = Semver::parse(SLIC3R_COMPATIBILITY_VERSION);
+        } else if (m_curr_metadata_name == "SlicerEngineCompatibility") {
+            // Product releases have their own version sequence. Keep the
+            // inherited engine's schema version for project compatibility.
+            m_prusaslicer_generator_version = Semver::parse(m_curr_characters);
         } else if (m_curr_metadata_name == SLIC3RPE_FDM_SUPPORTS_PAINTING_VERSION) {
             m_fdm_supports_painting_version = (unsigned int) atoi(m_curr_characters.c_str());
             check_painting_version(m_fdm_supports_painting_version, FDM_SUPPORTS_PAINTING_VERSION,
@@ -3108,6 +3114,7 @@ namespace Slic3r {
             stream << " <" << METADATA_TAG << " name=\"CreationDate\">" << date << "</" << METADATA_TAG << ">\n";
             stream << " <" << METADATA_TAG << " name=\"ModificationDate\">" << date << "</" << METADATA_TAG << ">\n";
             stream << " <" << METADATA_TAG << " name=\"Application\">" << SLIC3R_APP_KEY << "-" << SLIC3R_VERSION << "</" << METADATA_TAG << ">\n";
+            stream << " <" << METADATA_TAG << " name=\"SlicerEngineCompatibility\">" << SLIC3R_COMPATIBILITY_VERSION << "</" << METADATA_TAG << ">\n";
             stream << " <" << RESOURCES_TAG << ">\n";
             std::string buf = stream.str();
             if (! buf.empty() && ! mz_zip_writer_add_staged_data(&context, buf.data(), buf.size())) {
@@ -4085,14 +4092,13 @@ std::pair<bool, std::optional<Semver>> is_project_3mf(const std::string& filenam
                     char buffer[1024];
                     memset(buffer, 0, sizeof(buffer));
                     if (size_t bytes_read = mz_zip_reader_extract_iter_read(iter, buffer, sizeof(buffer)); bytes_read > 0) {
-                        std::string header(buffer);
-                        boost::regex pattern(R"(^\s*<metadata name="Application".*?PrusaSlicer-(.*?)</metadata>$)");
+                        std::string header(buffer, bytes_read);
+                        boost::regex pattern(R"(^\s*<metadata name="Application".*?(?:PrusaSlicer|InfiltratorSlicer)-(.*?)</metadata>$)");
                         boost::sregex_iterator it(header.begin(), header.end(), pattern);
                         boost::sregex_iterator end;
                         if (it != end) {
-                            Semver semver;
-                            semver.parse((*it)[1].str());
-                            out.second = semver;
+                            if (auto parsed = Semver::parse((*it)[1].str()))
+                                out.second = *parsed;
                         }
                     }
                 }

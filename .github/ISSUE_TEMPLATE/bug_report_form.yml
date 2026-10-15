@@ -1,5 +1,5 @@
 name: Bug Report
-description: File a bug report
+description: Report a problem with Infiltrator Slicer
 body:
   - type: markdown
     attributes:
@@ -41,9 +41,9 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version of PrusaSlicer
-      description: What version of PrusaSlicer are you running? You can see the full version in `Help` -> `About PrusaSlicer`.
-      placeholder: e.g. 2.4.1-alpha2-win64 / 2.3.3-linux / 2.4.1-alpha0+61-win64-gcd2459455 ...
+      label: Slicer product version
+      description: What version of Slicer are you running? Copy the full version from `Help` -> `About Slicer`; include the source commit for development builds.
+      placeholder: e.g. 0.0.1 (Windows x64 EXE) / 0.0.1 (Linux amd64 DEB)
     validations:
       required: true
   - type: input
@@ -51,7 +51,7 @@ body:
     attributes:
       label: Operating system
       description: with the version if possible
-      placeholder: e.g. Windows 7/8/10/11 ... , Ubuntu 22.04/Debian ... , macOS 10.15/11.1 ...
+      placeholder: e.g. Windows 11 x64 / Ubuntu 24.04 amd64 / Debian 12 amd64
     validations:
       required: true
   - type: input

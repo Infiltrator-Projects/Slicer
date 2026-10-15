@@ -33,9 +33,9 @@ namespace Slic3r {
 namespace GUI {
 
 
-static const char* URL_CHANGELOG = "https://files.prusa3d.com/?latest=slicer-stable&lng=%1%";
-static const char* URL_DOWNLOAD = "https://www.prusa3d.com/slicerweb&lng=%1%";
-static const char* URL_DEV = "https://github.com/prusa3d/PrusaSlicer/releases/tag/version_%1%";
+static const char* URL_CHANGELOG = "https://github.com/Infiltrator-Projects/Slicer/releases";
+static const char* URL_DOWNLOAD = "https://github.com/Infiltrator-Projects/Slicer/releases";
+static const char* URL_DEV = "https://github.com/Infiltrator-Projects/Slicer/releases/tag/v%1%";
 
 static const std::string CONFIG_UPDATE_WIKI_URL("https://github.com/prusa3d/PrusaSlicer/wiki/Slic3r-PE-1.40-configuration-update");
 
@@ -61,15 +61,13 @@ MsgUpdateSlic3r::MsgUpdateSlic3r(const Semver &ver_current, const Semver &ver_on
 		auto *link = new wxHyperlinkCtrl(this, wxID_ANY, _(L("Changelog & Download")), url_wx);
 		content_sizer->Add(link);
 	} else {
-		const auto lang_code = wxGetApp().current_language_code_safe().ToStdString();
-
-		const std::string url_log = (boost::format(URL_CHANGELOG) % lang_code).str();
+		const std::string url_log = std::string(URL_CHANGELOG);
 		const wxString url_log_wx = from_u8(url_log);
 		auto *link_log = new wxHyperlinkCtrl(this, wxID_ANY, _(L("Open changelog page")), url_log_wx);
 		link_log->Bind(wxEVT_HYPERLINK, &MsgUpdateSlic3r::on_hyperlink, this);
 		content_sizer->Add(link_log);
 
-		const std::string url_dw = (boost::format(URL_DOWNLOAD) % lang_code).str();
+		const std::string url_dw = std::string(URL_DOWNLOAD);
 		const wxString url_dw_wx = from_u8(url_dw);
 		auto *link_dw = new wxHyperlinkCtrl(this, wxID_ANY, _(L("Open download page")), url_dw_wx);
 		link_dw->Bind(wxEVT_HYPERLINK, &MsgUpdateSlic3r::on_hyperlink, this);
@@ -118,7 +116,7 @@ AppUpdateAvailableDialog::AppUpdateAvailableDialog(const Semver& ver_current, co
 	
     if (browser_on_next)
     {
-        content_sizer->Add(new wxStaticText(this, wxID_ANY, _L("Clicking \'Next\' will open a browser window where you can select which variant of PrusaSlicer you want to download.")));
+        content_sizer->Add(new wxStaticText(this, wxID_ANY, _L("Clicking \'Next\' will open a browser window where you can select which release of Slicer you want to download.")));
         content_sizer->AddSpacer(VERT_SPACING);
     }
 
@@ -279,7 +277,7 @@ boost::filesystem::path AppUpdateDownloadDialog::get_download_path() const
 
 MsgUpdateConfig::MsgUpdateConfig(const std::vector<Update> &updates, PresetUpdater::UpdateParams update_params) :
 	MsgDialog(nullptr, update_params == PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD  ? _L("Opening Configuration Wizard") : _L("Configuration update"), 
-					   update_params == PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD ? _L("PrusaSlicer is not using the newest configuration available.\n"
+					   update_params == PresetUpdater::UpdateParams::FORCED_BEFORE_WIZARD ? _L("Slicer is not using the newest configuration available.\n"
 												"Configuration Wizard may not offer the latest printers, filaments and SLA materials to be installed.") : 
 											 _L("Configuration update is available"), wxICON_ERROR)
 {

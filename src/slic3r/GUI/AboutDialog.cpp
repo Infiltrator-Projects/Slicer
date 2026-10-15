@@ -27,7 +27,7 @@ AboutDialogLogo::AboutDialogLogo(wxWindow* parent)
     : wxPanel(parent, wxID_ANY, wxDefaultPosition, wxDefaultSize)
 {
     this->SetBackgroundColour(*wxWHITE);
-    this->logo = wxBitmap(from_u8(Slic3r::var("PrusaSlicer_192px.png")), wxBITMAP_TYPE_PNG);
+    this->logo = wxBitmap(from_u8(Slic3r::var("InfiltratorSlicer_192px.png")), wxBITMAP_TYPE_PNG);
     this->SetMinSize(this->logo.GetSize());
     
     this->Bind(wxEVT_PAINT, &AboutDialogLogo::onRepaint, this);
@@ -281,7 +281,7 @@ AboutDialog::AboutDialog()
         // TRN AboutDialog: "Slic3r %1% GNU Affero General Public License"
         const wxString is_lecensed_str  = _L("is licensed under the");
         const wxString license_str      = _L("GNU Affero General Public License, version 3");
-        const wxString based_on_str     = _L("PrusaSlicer is based on Slic3r by Alessandro Ranellucci and the RepRap community.");
+        const wxString based_on_str     = _L("Slicer is developed by Infiltrator Projects, based on PrusaSlicer by Prusa Research and Slic3r by Alessandro Ranellucci and the RepRap community.");
         const wxString contributors_str = _L("Contributions by Henrik Brix Andersen, Nicolas Dandrimont, Mark Hindess, Petr Ledvina, Joseph Lenox, Y. Sapir, Mike Sheldrake, Vojtech Bubnik and numerous others.");
         const auto text = format_wxstr(
             "<html>"
@@ -289,7 +289,7 @@ AboutDialog::AboutDialog()
             "<font color=%3%>"
             "%4% &copy; 2016-2026 Prusa Research. <br />"
             "%5% &copy; 2011-2018 Alessandro Ranellucci. <br />"
-            "<a href=\"http://slic3r.org/\">Slic3r</a> %6% "
+            "<a href=\"https://github.com/Infiltrator-Projects/Slicer\">Slicer</a> %6% "
             "<a href=\"http://www.gnu.org/licenses/agpl-3.0.html\">%7%</a>."
             "<br /><br />"
             "%8%"

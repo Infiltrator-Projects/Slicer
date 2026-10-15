@@ -39,6 +39,7 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           cmake_version=$(sed -n 's/^set(SLIC3R_VERSION "\([^"]*\)").*/\1/p' version.inc)
           test "$cmake_version" = "$version"
+          cmake -P support/verify-product.cmake
 
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
@@ -128,14 +129,14 @@ jobs:
           test "$(dpkg-deb -f "$deb" Package)" = "infiltrator-slicer"
           test "$(dpkg-deb -f "$deb" Version)" = "$version"
           test "$(dpkg-deb -f "$deb" Architecture)" = "amd64"
-          dpkg-deb --contents "$deb" | grep -F './usr/bin/prusa-slicer' >/dev/null
+          dpkg-deb --contents "$deb" | grep -F './usr/bin/slicer' >/dev/null
           # Exercise the exact packaged executable without replacing an app
           # installed on this persistent runner.
           smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-deb-smoke.XXXXXX")
           trap 'rm -rf -- "$smoke_root"' EXIT
           dpkg-deb --extract "$deb" "$smoke_root"
-          help_output=$(xvfb-run -a "$smoke_root/usr/bin/prusa-slicer" --help)
-          version_pattern="^PrusaSlicer-${version//./\\.}([^0-9.]|$)"
+          help_output=$(xvfb-run -a "$smoke_root/usr/bin/slicer" --help)
+          version_pattern="^Slicer-${version//./\\.}([^0-9.]|$)"
           printf '%s\n' "$help_output" | grep -E "$version_pattern"
 
       - name: Upload exact Linux release candidate
@@ -189,7 +190,7 @@ jobs:
               $Resources = Join-Path $Fixture 'resources'
               $Output = Join-Path $Fixture 'output'
               New-Item -ItemType Directory -Force -Path $Payload, $Resources, $Output | Out-Null
-              Set-Content (Join-Path $Payload 'prusa-slicer.exe') 'Installer syntax fixture'
+              Set-Content (Join-Path $Payload 'slicer.exe') 'Installer syntax fixture'
               Set-Content (Join-Path $Resources 'fixture.txt') 'Installer syntax fixture'
               $Iscc = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
               $Compiler = if ($Iscc) { $Iscc.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }

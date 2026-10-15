@@ -2,6 +2,7 @@
 
 #include "libslic3r/libslic3r.h"
 #include "libslic3r/Model.hpp"
+#include "libslic3r/Utils.hpp"
 #include <arrange-wrapper/ModelArrange.hpp>
 
 #include <boost/nowide/cstdio.hpp>
@@ -11,6 +12,34 @@
 
 using namespace Slic3r;
 using namespace Slic3r::Test;
+
+TEST_CASE("Slicer projects retain product and engine versions on round trip", "[Model][3MF]") {
+    const auto path = boost::filesystem::temp_directory_path() /
+        boost::filesystem::unique_path("infiltrator-slicer-%%%%-%%%%.3mf");
+    ScopeGuard cleanup([&path] { boost::filesystem::remove(path); });
+    Model original;
+    SECTION("A project with a model") {
+        auto *object = original.add_object();
+        object->add_volume(make_cube(20, 20, 20));
+        object->add_instance();
+    }
+    SECTION("A configuration-only project") {}
+    auto config = DynamicPrintConfig::full_print_config();
+    REQUIRE(store_3mf(path.string().c_str(), &original, &config, false));
+    const auto project = is_project_3mf(path.string());
+    REQUIRE(project.first);
+    REQUIRE(project.second.has_value());
+    REQUIRE(*project.second == *Semver::parse(SLIC3R_VERSION));
+    Model restored;
+    DynamicPrintConfig restored_config;
+    ConfigSubstitutionContext substitutions{ForwardCompatibilitySubstitutionRule::Disable};
+    boost::optional<Semver> engine_version;
+    REQUIRE(load_3mf(path.string().c_str(), restored_config, substitutions,
+        &restored, true, engine_version));
+    REQUIRE(restored.objects.size() == original.objects.size());
+    REQUIRE(engine_version.has_value());
+    REQUIRE(*engine_version == *Semver::parse(SLIC3R_COMPATIBILITY_VERSION));
+}
 
 SCENARIO("Model construction", "[Model]") {
     GIVEN("A Slic3r Model") {

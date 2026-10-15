@@ -11,9 +11,9 @@
   <key>CFBundleName</key>
   <string>@SLIC3R_APP_KEY@</string>
   <key>CFBundleShortVersionString</key>
-  <string>@SLIC3R_APP_NAME@ @SLIC3R_BUILD_ID@</string>
+  <string>@SLIC3R_VERSION@</string>
   <key>CFBundleIdentifier</key>
-  <string>com.prusa3d.slic3r/</string>
+  <string>io.github.Infiltrator-Projects.Slicer</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundlePackageType</key>
@@ -21,7 +21,7 @@
   <key>CFBundleSignature</key>
   <string>????</string>
   <key>CFBundleVersion</key>
-  <string>@SLIC3R_BUILD_ID@</string>
+  <string>@SLIC3R_VERSION@</string>
   <key>CFBundleDocumentTypes</key>
   <array>
     <dict>
@@ -131,7 +131,7 @@
     <array>
       <dict>
         <key>CFBundleURLName</key>
-        <string>PrusaSlicer Downloads</string>
+        <string>Slicer Downloads</string>
         <key>CFBundleURLSchemes</key>
         <array>
           <string>prusaslicer</string>

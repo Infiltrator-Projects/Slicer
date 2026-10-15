@@ -8,6 +8,7 @@
 
 namespace Slic3r {
 
-Semver SEMVER { SLIC3R_VERSION };
+// This value compares printer profile/schema versions, not product releases.
+Semver SEMVER { SLIC3R_COMPATIBILITY_VERSION };
 
 }

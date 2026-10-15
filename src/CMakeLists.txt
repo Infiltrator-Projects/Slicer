@@ -140,6 +140,9 @@ if (NOT WIN32 AND NOT APPLE)
     # Binary name on unix like systems (Linux, Unix)
     set_target_properties(PrusaSlicer PROPERTIES OUTPUT_NAME "prusa-slicer")
 endif ()
+if (APPLE)
+    set_target_properties(PrusaSlicer PROPERTIES OUTPUT_NAME "${SLIC3R_APP_KEY}")
+endif ()
 
 
 target_link_libraries(PrusaSlicer PRIVATE libslic3r libcereal slic3r-arrange-wrapper libseqarrange stb_image)
@@ -261,15 +264,16 @@ else ()
     if (APPLE)
         # On OSX, the name of the binary matches the name of the Application.
         add_custom_command(TARGET PrusaSlicer POST_BUILD
-            COMMAND ln -sf PrusaSlicer prusa-slicer
-            COMMAND ln -sf PrusaSlicer prusa-gcodeviewer
-            COMMAND ln -sf PrusaSlicer PrusaGCodeViewer
+            COMMAND ln -sf "$<TARGET_FILE_NAME:PrusaSlicer>" prusa-slicer
+            COMMAND ln -sf "$<TARGET_FILE_NAME:PrusaSlicer>" prusa-gcodeviewer
+            COMMAND ln -sf "$<TARGET_FILE_NAME:PrusaSlicer>" slicer
             WORKING_DIRECTORY "$<TARGET_FILE_DIR:PrusaSlicer>"
             COMMENT "Symlinking the G-code viewer to PrusaSlicer, symlinking to prusa-slicer and prusa-gcodeviewer"
             VERBATIM)
     else ()
         add_custom_command(TARGET PrusaSlicer POST_BUILD
             COMMAND ln -sf prusa-slicer prusa-gcodeviewer
+            COMMAND ln -sf prusa-slicer slicer
             WORKING_DIRECTORY "$<TARGET_FILE_DIR:PrusaSlicer>"
             COMMENT "Symlinking the G-code viewer to PrusaSlicer"
             VERBATIM)
@@ -295,7 +299,8 @@ if (WIN32)
     endif ()
 else ()
     install(TARGETS PrusaSlicer RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:PrusaSlicer> slicer WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})")
 
     # Install the symlink for gcodeviewer
-    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink prusa-slicer prusa-gcodeviewer WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})")
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink $<TARGET_FILE_NAME:PrusaSlicer> prusa-gcodeviewer WORKING_DIRECTORY \$ENV{DESTDIR}/${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})")
 endif ()

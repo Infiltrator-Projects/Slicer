@@ -1,6 +1,18 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "slic3r/Config/Version.hpp"
+#include "libslic3r/libslic3r.h"
+
+TEST_CASE("Product version preserves printer profile compatibility", "[Version]") {
+    using namespace Slic3r;
+    GUI::Config::Version profile;
+    profile.min_slic3r_version = *Semver::parse("2.9.4-rc0");
+    profile.max_slic3r_version = Semver::inf();
+    REQUIRE(profile.is_current_slic3r_supported());
+    REQUIRE_FALSE(profile.is_current_slic3r_downgrade());
+    REQUIRE_FALSE(profile.is_slic3r_supported(*Semver::parse(SLIC3R_VERSION)));
+    REQUIRE(SEMVER == *Semver::parse(SLIC3R_COMPATIBILITY_VERSION));
+}
 
 
 TEST_CASE("Check parsing and comparing of config versions", "[Version]") {

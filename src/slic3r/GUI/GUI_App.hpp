@@ -208,7 +208,7 @@ public:
     bool is_editor() const { return m_app_mode == EAppMode::Editor; }
     bool is_gcode_viewer() const { return m_app_mode == EAppMode::GCodeViewer; }
     bool is_recreating_gui() const { return m_is_recreating_gui; }
-    std::string logo_name() const { return is_editor() ? "PrusaSlicer" : "PrusaSlicer-gcodeviewer"; }
+    std::string logo_name() const { return is_editor() ? "InfiltratorSlicer" : "InfiltratorSlicer-gcodeviewer"; }
 
     Search::OptionsSearcher& searcher() noexcept { return *m_searcher; }
     void                     set_searcher(Search::OptionsSearcher* searcher) { m_searcher = searcher; }

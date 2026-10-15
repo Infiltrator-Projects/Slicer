@@ -304,7 +304,7 @@ private:
             // credits infornation
             credits = "\n" + title + " " +
                 _L("is based on Slic3r by Alessandro Ranellucci and the RepRap community.") + "\n\n" +
-                _L("Developed by Prusa Research.") + "\n\n" +
+                _L("Developed by Infiltrator Projects.\nBased on PrusaSlicer by Prusa Research.") + "\n\n" +
                 _L("Licensed under GNU AGPLv3.") + "\n\n\n\n\n\n\n";
 
             title_font = version_font = credits_font = init_font;
@@ -749,8 +749,8 @@ static void generic_exception_handle()
         BOOST_LOG_TRIVIAL(error) << boost::format("std::bad_alloc exception: %1%") % ex.what();
         std::terminate();
     } catch (const boost::io::bad_format_string& ex) {
-        wxString errmsg = _L("PrusaSlicer has encountered a localization error. "
-                             "Please report to PrusaSlicer team, what language was active and in which scenario "
+        wxString errmsg = _L("Slicer has encountered a localization error. "
+                             "Please report to Slicer team, what language was active and in which scenario "
                              "this issue happened. Thank you.\n\nThe application will now terminate.");
         wxMessageBox(errmsg + "\n\n" + wxString(ex.what()), _L("Critical error"), wxOK | wxICON_ERROR);
         BOOST_LOG_TRIVIAL(error) << boost::format("Uncaught exception: %1%") % ex.what();
@@ -850,13 +850,8 @@ void GUI_App::post_init()
             // preset_updater->sync downloads profile updates and than via event checks updates and incompatible presets. We need to run it on startup.
             // start before cw so it is canceled by cw if needed?
             this->get_preset_updater_wrapper()->sync_preset_updater(this, preset_bundle);
-            bool cw_showed = this->config_wizard_startup();
-            if (! cw_showed) {
-                // The CallAfter is needed as well, without it, GL extensions did not show.
-                // Also, we only want to show this when the wizard does not, so the new user
-                // sees something else than "we want something" on the first start.
-                show_send_system_info_dialog_if_needed();   
-            }  
+            this->config_wizard_startup();
+            // Upstream usage-report submission is not part of this product.
             // app version check is asynchronous and triggers blocking dialog window, better call it last
             this->app_version_check(false);
         });
@@ -925,10 +920,16 @@ static boost::optional<Semver> parse_semver_from_ini(const std::string& path)
     std::stringstream buffer;
     buffer << stream.rdbuf();
     std::string body = buffer.str();
-    size_t start = body.find("PrusaSlicer ");
+    std::string application_prefix = std::string(SLIC3R_APP_NAME) + " ";
+    size_t start = body.find(application_prefix);
+    if (start == std::string::npos) {
+        // Accept imported upstream configuration headers without adopting their identity.
+        application_prefix = "PrusaSlicer ";
+        start = body.find(application_prefix);
+    }
     if (start == std::string::npos)
         return boost::none;
-    body = body.substr(start + 12);
+    body = body.substr(start + application_prefix.size());
     size_t end = body.find_first_of(" \n");
     if (end < body.size())
         body.resize(end);
@@ -949,7 +950,7 @@ void GUI_App::init_app_config()
         if (!error.empty()) {
             // Error while parsing config file. We'll customize the error message and rethrow to be displayed.
             if (is_editor()) {
-                throw Slic3r::RuntimeError(format("Error parsing PrusaSlicer config file, it is probably corrupted. "
+                throw Slic3r::RuntimeError(format("Error parsing Slicer config file, it is probably corrupted. "
                         "Try to manually delete the file to recover from the error. Your user profiles will not be affected."
                         "\n\n%1%\n\n%2%", app_config->config_path(), error));
             }
@@ -1030,7 +1031,7 @@ void GUI_App::legacy_app_config_vendor_check()
         return;
     }
 
-    BOOST_LOG_TRIVIAL(warning) << "PrusaSlicer has found legacy SLA printers. The printers will be "
+    BOOST_LOG_TRIVIAL(warning) << "Slicer has found legacy SLA printers. The printers will be "
                                   "moved to new vendor and its ini file will be installed. Configuration snapshot will be taken.";
 
      // Take snapshot now, since creation of new vendors in appconfig, snapshots wont be compatible in older slicers.
@@ -1201,7 +1202,7 @@ std::string GUI_App::check_older_app_config(Semver current_version, bool backup)
         if (!error.empty()) {
             // Error while parsing config file. We'll customize the error message and rethrow to be displayed.
             if (is_editor()) {
-                throw Slic3r::RuntimeError(format("Error parsing PrusaSlicer config file, it is probably corrupted. "
+                throw Slic3r::RuntimeError(format("Error parsing Slicer config file, it is probably corrupted. "
                         "Try to manually delete the file to recover from the error. Your user profiles will not be affected."
                         "\n\n%1%\n\n%2%", app_config->config_path(), error));
             }
@@ -1350,11 +1351,11 @@ bool GUI_App::on_init_inner()
     // Win32 32bit build.
     if (wxPlatformInfo::Get().GetArchName().substr(0, 2) == "64") {
         RichMessageDialog dlg(nullptr,
-            _L("You are running a 32 bit build of PrusaSlicer on 64-bit Windows."
-                "\n32 bit build of PrusaSlicer will likely not be able to utilize all the RAM available in the system."
-                "\nPlease download and install a 64 bit build of PrusaSlicer from https://www.prusa3d.cz/prusaslicer/."
+            _L("You are running a 32 bit build of Slicer on 64-bit Windows."
+                "\n32 bit build of Slicer will likely not be able to utilize all the RAM available in the system."
+                "\nDownload a 64 bit build of Slicer from https://github.com/Infiltrator-Projects/Slicer/releases."
                 "\nDo you wish to continue?"),
-            "PrusaSlicer", wxICON_QUESTION | wxYES_NO);
+            "Slicer", wxICON_QUESTION | wxYES_NO);
         if (dlg.ShowModal() != wxID_YES)
             return false;
     }
@@ -1437,7 +1438,7 @@ bool GUI_App::on_init_inner()
             RichMessageDialog
                 dlg(nullptr,
                     wxString::Format(_L("%s\nDo you want to continue?"), msg),
-                    "PrusaSlicer", wxICON_QUESTION | wxYES_NO);
+                    "Slicer", wxICON_QUESTION | wxYES_NO);
             dlg.ShowCheckBox(_L("Remember my choice"));
             if (dlg.ShowModal() != wxID_YES) return false;
 
@@ -1451,7 +1452,11 @@ bool GUI_App::on_init_inner()
     SplashScreen* scrn = nullptr;
     if (app_config->get_bool("show_splash_screen")) {
         // make a bitmap with dark grey banner on the left side
-        wxBitmap bmp = SplashScreen::MakeBitmap(wxBitmap(from_u8(var(is_editor() ? "splashscreen.jpg" : "splashscreen-gcodepreview.jpg")), wxBITMAP_TYPE_JPEG));
+        BitmapCache splash_cache;
+        wxBitmap* artwork = splash_cache.load_svg("InfiltratorSlicer-splash", 600, 480);
+        wxBitmap splash_bitmap = artwork != nullptr ? *artwork :
+            get_bmp_bundle(logo_name(), 400)->GetBitmap(wxSize(400, 400));
+        wxBitmap bmp = SplashScreen::MakeBitmap(splash_bitmap);
 
         // Detect position (display) to show the splash screen
         // Now this position is equal to the mainframe position
@@ -1471,7 +1476,7 @@ bool GUI_App::on_init_inner()
         }
 
         // create splash screen with updated bmp
-        scrn = new SplashScreen(bmp.IsOk() ? bmp : get_bmp_bundle("PrusaSlicer", 400)->GetPreferredBitmapSizeAtScale(1.0), 
+        scrn = new SplashScreen(bmp,
                                 wxSPLASH_CENTRE_ON_SCREEN | wxSPLASH_TIMEOUT, 4000, splashscreen_pos);
 
         if (!default_splashscreen_pos)
@@ -1512,7 +1517,7 @@ bool GUI_App::on_init_inner()
                         , NotificationManager::NotificationLevel::ImportantNotificationLevel
                         , Slic3r::format(_u8L("New prerelease version %1% is available."), evt_string)
                         , _u8L("See Releases page.")
-                        , [](wxEvtHandler* evnthndlr) {wxGetApp().open_browser_with_warning_dialog("https://github.com/prusa3d/PrusaSlicer/releases"); return true; }
+                        , [](wxEvtHandler* evnthndlr) {wxGetApp().open_browser_with_warning_dialog("https://github.com/Infiltrator-Projects/Slicer/releases"); return true; }
                     );
                 }
             }
@@ -1684,8 +1689,8 @@ bool GUI_App::on_init_inner()
     {
         wxString preferences_item = _L("Restore window position on start");
         InfoDialog dialog(nullptr,
-            _L("PrusaSlicer started after a crash"),
-            format_wxstr(_L("PrusaSlicer crashed last time when attempting to set window position.\n"
+            _L("Slicer started after a crash"),
+            format_wxstr(_L("Slicer crashed last time when attempting to set window position.\n"
                 "We are sorry for the inconvenience, it unfortunately happens with certain multiple-monitor setups.\n"
                 "More precise reason for the crash: \"%1%\".\n"
                 "For more information see our GitHub issue tracker: \"%2%\" and \"%3%\"\n\n"
@@ -2120,7 +2125,7 @@ void GUI_App::check_printer_presets()
     for (const std::string& preset_name : preset_names)
         msg_text += "\n    \"" + from_u8(preset_name) + "\",";
     msg_text.RemoveLast();
-    msg_text += "\n\n" + _L("But since this version of PrusaSlicer we don't show this information in Printer Settings anymore.\n"
+    msg_text += "\n\n" + _L("But since this version of Slicer we don't show this information in Printer Settings anymore.\n"
                             "Settings will be available in physical printers settings.") + "\n\n" +
                          _L("By default new Printer devices will be named as \"Printer N\" during its creation.\n"
                             "Note: This name can be changed later from the physical printers settings");
@@ -2447,7 +2452,7 @@ int GUI_App::GetSingleChoiceIndex(const wxString& message,
 // select language from the list of installed languages
 bool GUI_App::select_language()
 {
-	wxArrayString translations = wxTranslations::Get()->GetAvailableTranslations(SLIC3R_APP_KEY);
+	wxArrayString translations = wxTranslations::Get()->GetAvailableTranslations("PrusaSlicer");
     std::vector<const wxLanguageInfo*> language_infos;
     language_infos.emplace_back(wxLocale::GetLanguageInfo(wxLANGUAGE_ENGLISH));
     for (size_t i = 0; i < translations.GetCount(); ++ i) {
@@ -2496,7 +2501,7 @@ bool GUI_App::select_language()
             // Which language to save as the selected dictionary language?
             // 1) Hopefully the language set to wxTranslations by this->load_language(), but that API is weird and we don't want to rely on its
             //    stability in the future:
-            //    wxTranslations::Get()->GetBestTranslation(SLIC3R_APP_KEY, wxLANGUAGE_ENGLISH);
+            //    wxTranslations::Get()->GetBestTranslation("PrusaSlicer", wxLANGUAGE_ENGLISH);
             // 2) Current locale language may not match the dictionary name, see GH issue #3901
             //    m_wxLocale->GetCanonicalName()
             // 3) new_language_info->CanonicalName is a safe bet. It points to a valid dictionary name.
@@ -2547,7 +2552,7 @@ bool GUI_App::load_language(wxString language, bool initial)
 	    	// There seems to be a support for that on Windows and OSX, while on Linuxes the code just returns wxLocale::GetSystemLanguage().
 	    	// The last parameter gets added to the list of detected dictionaries. This is a workaround 
 	    	// for not having the English dictionary. Let's hope wxWidgets of various versions process this call the same way.
-			wxString best_language = wxTranslations::Get()->GetBestTranslation(SLIC3R_APP_KEY, wxLANGUAGE_ENGLISH);
+			wxString best_language = wxTranslations::Get()->GetBestTranslation("PrusaSlicer", wxLANGUAGE_ENGLISH);
 			if (! best_language.IsEmpty()) {
 				m_language_info_best = wxLocale::FindLanguageInfo(best_language);
 	        	BOOST_LOG_TRIVIAL(trace) << boost::format("Best translation language detected (may be different from user locales): %1%") % m_language_info_best->CanonicalName.ToUTF8().data();
@@ -2571,7 +2576,7 @@ bool GUI_App::load_language(wxString language, bool initial)
 	}
 
 	if (language_info != nullptr && language_info->LayoutDirection == wxLayout_RightToLeft) {
-    	BOOST_LOG_TRIVIAL(trace) << boost::format("The following language code requires right to left layout, which is not supported by PrusaSlicer: %1%") % language_info->CanonicalName.ToUTF8().data();
+        BOOST_LOG_TRIVIAL(trace) << boost::format("The following language code requires right to left layout, which is not supported by Slicer: %1%") % language_info->CanonicalName.ToUTF8().data();
 		language_info = nullptr;
 	}
 
@@ -2618,14 +2623,14 @@ bool GUI_App::load_language(wxString language, bool initial)
 
     if (! wxLocale::IsAvailable(language_info->Language)) {
     	// Loading the language dictionary failed.
-    	wxString message = "Switching PrusaSlicer to language " + language_info->CanonicalName + " failed.";
+        wxString message = "Switching Slicer to language " + language_info->CanonicalName + " failed.";
 #if !defined(_WIN32) && !defined(__APPLE__)
         // likely some linux system
         message += "\nYou may need to reconfigure the missing locales, likely by running the \"locale-gen\" and \"dpkg-reconfigure locales\" commands.\n";
 #endif
         if (initial)
         	message + "\n\nApplication will close.";
-        wxMessageBox(message, "PrusaSlicer - Switching language failed", wxOK | wxICON_ERROR);
+        wxMessageBox(message, "Slicer - Switching language failed", wxOK | wxICON_ERROR);
         if (initial)
 			std::exit(EXIT_FAILURE);
 		else
@@ -2640,7 +2645,8 @@ bool GUI_App::load_language(wxString language, bool initial)
     // Override language at the active wxTranslations class (which is stored in the active m_wxLocale)
     // to load possibly different dictionary, for example, load Czech dictionary for Slovak language.
     wxTranslations::Get()->SetLanguage(language_dict);
-    m_wxLocale->AddCatalog(SLIC3R_APP_KEY);
+    // Preserve the existing translation domain independently of product/user-data names.
+    m_wxLocale->AddCatalog("PrusaSlicer");
     m_imgui->set_language(into_u8(language_info->CanonicalName));
     //FIXME This is a temporary workaround, the correct solution is to switch to "C" locale during file import / export only.
     //wxSetlocale(LC_NUMERIC, "C");
@@ -3620,18 +3626,18 @@ bool GUI_App::check_updates(const bool invoked_by_user)
 namespace {
 bool open_dialog_hyperlink_checkbox(wxWindow* parent, AppConfig* app_config)
 {
-    RichMessageDialog dialog(parent, _L("Open hyperlink in default browser?"), _L("PrusaSlicer: Open hyperlink"), wxICON_QUESTION | wxYES_NO);
+    RichMessageDialog dialog(parent, _L("Open hyperlink in default browser?"), _L("Slicer: Open hyperlink"), wxICON_QUESTION | wxYES_NO);
     dialog.ShowCheckBox(_L("Remember my choice"));
     auto answer = dialog.ShowModal();
     bool launch = answer == wxID_YES;
     if (dialog.IsCheckBoxChecked()) {
         wxString preferences_item = _L("Suppress to open hyperlink in browser");
         wxString msg =
-            _L("PrusaSlicer will remember your choice.") + "\n\n" +
+            _L("Slicer will remember your choice.") + "\n\n" +
             _L("You will not be asked about it again on hyperlinks hovering.") + "\n\n" +
             format_wxstr(_L("Visit \"Preferences\" and check \"%1%\"\nto changes your choice."), preferences_item);
 
-        MessageDialog msg_dlg(parent, msg, _L("PrusaSlicer: Don't ask me again"), wxOK | wxCANCEL | wxICON_INFORMATION);
+        MessageDialog msg_dlg(parent, msg, _L("Slicer: Don't ask me again"), wxOK | wxCANCEL | wxICON_INFORMATION);
         if (msg_dlg.ShowModal() == wxID_CANCEL)
             return false;
         app_config->set("suppress_hyperlinks", answer == wxID_NO ? "1" : "0");
@@ -3640,7 +3646,7 @@ bool open_dialog_hyperlink_checkbox(wxWindow* parent, AppConfig* app_config)
 }
 bool open_dialog_hyperlink(wxWindow* parent)
 {
-    MessageDialog dialog(parent, _L("Open hyperlink in default browser?"), _L("PrusaSlicer: Open hyperlink"), wxICON_QUESTION | wxYES_NO);
+    MessageDialog dialog(parent, _L("Open hyperlink in default browser?"), _L("Slicer: Open hyperlink"), wxICON_QUESTION | wxYES_NO);
     return dialog.ShowModal() == wxID_YES;
 }
 }
@@ -3682,7 +3688,7 @@ bool GUI_App::open_login_browser_with_dialog(const wxString& url, wxWindow* pare
 {
     bool auth_login_dialog_confirmed = app_config->get_bool("auth_login_dialog_confirmed");
     if (!auth_login_dialog_confirmed) {
-        RichMessageDialog dialog(parent, _L("Open default browser with Prusa Account Log in page?\n(If you select 'Yes', you will not be asked again.)"), _L("PrusaSlicer: Open Log in page"), wxICON_QUESTION | wxYES_NO);
+        RichMessageDialog dialog(parent, _L("Open default browser with Prusa Account Log in page?\n(If you select 'Yes', you will not be asked again.)"), _L("Slicer: Open Log in page"), wxICON_QUESTION | wxYES_NO);
          if (dialog.ShowModal() != wxID_YES)
              return false;
          app_config->set("auth_login_dialog_confirmed", "1");
@@ -3719,22 +3725,22 @@ bool GUI_App::open_login_browser_with_dialog(const wxString& url, wxWindow* pare
 #ifdef __WXMSW__
 void GUI_App::associate_3mf_files()
 {
-    associate_file_type(L".3mf", L"Prusa.Slicer.1", L"PrusaSlicer", true);
+    associate_file_type(L".3mf", L"Infiltrator.Slicer.1", L"Slicer", true);
 }
 
 void GUI_App::associate_stl_files()
 {
-    associate_file_type(L".stl", L"Prusa.Slicer.1", L"PrusaSlicer", true);
+    associate_file_type(L".stl", L"Infiltrator.Slicer.1", L"Slicer", true);
 }
 
 void GUI_App::associate_gcode_files()
 {
-    associate_file_type(L".gcode", L"PrusaSlicer.GCodeViewer.1", L"PrusaSlicerGCodeViewer", true);
+    associate_file_type(L".gcode", L"Infiltrator.Slicer.GCodeViewer.1", L"Slicer G-code Viewer", true);
 }
 
 void GUI_App::associate_bgcode_files()
 {
-    associate_file_type(L".bgcode", L"PrusaSlicer.GCodeViewer.1", L"PrusaSlicerGCodeViewer", true);
+    associate_file_type(L".bgcode", L"Infiltrator.Slicer.GCodeViewer.1", L"Slicer G-code Viewer", true);
 }
 #endif // __WXMSW__
 
@@ -3781,61 +3787,14 @@ void GUI_App::on_version_read(wxCommandEvent& evt)
 
 void GUI_App::app_updater(bool from_user)
 {
-    DownloadAppData app_data = m_app_updater->get_app_data();
-
-    if (from_user && (!app_data.version || *app_data.version <= *Semver::parse(SLIC3R_VERSION)))
-    {
-        BOOST_LOG_TRIVIAL(info) << "There is no newer version online.";
-        MsgNoAppUpdates no_update_dialog;
-        no_update_dialog.ShowModal();
-        return;
-
-    }
-
-    assert(!app_data.url.empty());
-    assert(!app_data.target_path.empty());
-
-    // dialog with new version info
-    AppUpdateAvailableDialog dialog(*Semver::parse(SLIC3R_VERSION), *app_data.version, from_user, app_data.action == AppUpdaterURLAction::AUUA_OPEN_IN_BROWSER);
-    auto dialog_result = dialog.ShowModal();
-    // checkbox "do not show again"
-    if (dialog.disable_version_check()) {
-        app_config->set("notify_release", "none");
-    }
-    // Doesn't wish to update
-    if (dialog_result != wxID_OK) {
-        return;
-    }
-    if (app_data.action == AppUpdaterURLAction::AUUA_OPEN_IN_BROWSER) {
-        open_browser_with_warning_dialog(from_u8(app_data.url), nullptr, false);
-        return;
-    }
-    // dialog with new version download (installer or app dependent on system) including path selection
-    AppUpdateDownloadDialog dwnld_dlg(*app_data.version, app_data.target_path);
-    dialog_result = dwnld_dlg.ShowModal();
-    //  Doesn't wish to download
-    if (dialog_result != wxID_OK) {
-        return;
-    }
-    app_data.target_path =dwnld_dlg.get_download_path();
-    // start download
-    this->plater_->get_notification_manager()->push_download_progress_notification(GUI::format(_L("Downloading %1%"), app_data.target_path.filename().string()), std::bind(&AppUpdater::cancel_callback, this->m_app_updater.get()));
-    app_data.start_after = dwnld_dlg.run_after_download();
-    m_app_updater->set_app_data(std::move(app_data));
-    m_app_updater->sync_download();
+    // Product updates come from Infiltrator releases or APT, never an upstream installer.
+    app_version_check(from_user);
 }
 
 void GUI_App::app_version_check(bool from_user)
 {
-    if (from_user) {
-        if (m_app_updater->get_download_ongoing()) {
-            MessageDialog msgdlg(nullptr, _L("Downloading of the new version is in progress. Do you want to continue?"), _L("Notice"), wxYES_NO);
-            if (msgdlg.ShowModal() != wxID_YES)
-                return;
-        }
-    }
-    std::string version_check_url = app_config->version_check_url();
-    m_app_updater->sync_version(version_check_url, from_user);
+    if (from_user)
+        open_browser_with_warning_dialog("https://github.com/Infiltrator-Projects/Slicer/releases", nullptr, false);
 }
 
 void GUI_App::start_download(std::string url)

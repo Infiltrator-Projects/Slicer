@@ -139,11 +139,18 @@ if (-not (Test-Path $ConsoleExecutable -PathType Leaf)) {
     Fail "Windows console executable was not produced: $ConsoleExecutable"
 }
 
+# Keep legacy launcher filenames for build-driver compatibility while exposing
+# the product's own executable names in shortcuts and release qualification.
+Copy-Item -LiteralPath $GuiExecutable -Destination (Join-Path $BuildOutput "slicer.exe") -Force
+Copy-Item -LiteralPath $ConsoleExecutable -Destination (Join-Path $BuildOutput "slicer-console.exe") -Force
+Copy-Item -LiteralPath (Join-Path $BuildOutput "prusa-gcodeviewer.exe") `
+    -Destination (Join-Path $BuildOutput "slicer-gcodeviewer.exe") -Force
+$ConsoleExecutable = Join-Path $BuildOutput "slicer-console.exe"
 $HelpOutput = (& $ConsoleExecutable --help 2>&1 | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) {
     Fail "Built console executable failed its --help smoke test."
 }
-$VersionPattern = '(?m)^PrusaSlicer-' + [regex]::Escape($Version) + '(?![\d.])[^\r\n]*'
+$VersionPattern = '(?m)^Slicer-' + [regex]::Escape($Version) + '(?![\d.])[^\r\n]*'
 $VersionMatch = [regex]::Match($HelpOutput, $VersionPattern)
 if (-not $VersionMatch.Success) {
     Fail "Built Slicer reports an unexpected version: $HelpOutput"

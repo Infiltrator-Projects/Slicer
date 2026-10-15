@@ -36,7 +36,7 @@ PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
 Uninstallable=not IsCISmoke
 CreateUninstallRegKey=not IsCISmoke
-UninstallDisplayIcon={app}\prusa-slicer.exe
+UninstallDisplayIcon={app}\slicer.exe
 SetupLogging=yes
 
 [Files]
@@ -46,14 +46,14 @@ Source: "{#RepoRoot}\build\src\Release\*"; DestDir: "{app}"; Excludes: "resource
 Source: "{#RepoRoot}\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{autoprograms}\Slicer"; Filename: "{app}\prusa-slicer.exe"; Check: not IsCISmoke
-Name: "{autodesktop}\Slicer"; Filename: "{app}\prusa-slicer.exe"; Tasks: desktopicon; Check: not IsCISmoke
+Name: "{autoprograms}\Slicer"; Filename: "{app}\slicer.exe"; Check: not IsCISmoke
+Name: "{autodesktop}\Slicer"; Filename: "{app}\slicer.exe"; Tasks: desktopicon; Check: not IsCISmoke
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked; Check: not IsCISmoke
 
 [Run]
-Filename: "{app}\prusa-slicer.exe"; Description: "Launch Slicer"; Flags: nowait postinstall skipifsilent; Check: not IsCISmoke
+Filename: "{app}\slicer.exe"; Description: "Launch Slicer"; Flags: nowait postinstall skipifsilent; Check: not IsCISmoke
 
 [Code]
 { CI installs the same payload into a unique temporary directory, without

@@ -1,6 +1,6 @@
-# Slicer release engineering
+# Infiltrator Slicer release engineering
 
-Slicer owns its build and release machinery in this repository.
+Slicer owns its build and release machinery in this repository. Product releases start at **0.0.1**, independently of the upstream PrusaSlicer 2.9.6 engine baseline. Upstream profile and file-format compatibility versions remain separate from the product version.
 
 ## Release contract
 
@@ -14,16 +14,22 @@ GitHub supplies the source `.zip` and `.tar.gz` automatically from the release
 tag, so source archives are deliberately not rebuilt or uploaded as release
 assets.
 
-The `Publish release` workflow consumes only the sealed artifacts from the
-exact successful `Verify` run. It never rebuilds them. Before publication it
+The `Publish release` workflow normally consumes the sealed artifacts from the
+exact successful push-to-main `Verify` run. It never rebuilds them. Before publication it
 checks the recorded source commit, version, SHA-256 hashes, package identity
-and Windows executable signature. A release is created as a draft, the remote
+and Windows PE executable header. The PE header check is not an Authenticode signing claim. A release is created as a draft, the remote
 asset bytes are compared with the sealed candidates, and only then is it made
 public.
 
 `support/VERSION` is the release authority. It must match `SLIC3R_VERSION` in
 `version.inc`. Once a version has been published, changes outside the workflow
 files require the version to advance before another release can qualify.
+
+## Recover a failed sealing or publication job
+
+If the source contract and both platform qualification jobs succeeded but sealing failed, dispatch `Publish release` with `qualified_run_id` set to that original Verify run ID. Recovery checks that the run came from this repository's `ci.yml` push to `main`, validates the latest source/Linux/Windows job results, downloads the original two candidates, and seals those exact bytes. It does not rebuild them.
+
+A newer main commit is accepted only if it is a descendant with changes confined to workflow files. The release tag must identify the original qualified product commit. Published bytes are compared with the qualified candidates before and after publication; existing public assets are never replaced.
 
 ## Why the upstream workflows were removed
 
@@ -81,7 +87,6 @@ with FHS installation enabled. Runtime library dependencies are derived from
 the actual built executable with `dpkg-shlibdeps`, then the staged tree is
 packed as `infiltrator-slicer`.
 
-The present upstream-derived executable/resource names still overlap
-PrusaSlicer, so the transitional Debian package declares a conflict/replacement
-relationship with `prusa-slicer`. That should be removed when Slicer's product
-identity and installed paths are fully separated from the upstream names.
+The desktop entry, product icons, metadata, and resource directory use Infiltrator identity. `slicer` is the canonical launcher. The retained `prusa-slicer` compatibility command overlaps the upstream package, so the Debian package declares a conflict/replacement relationship with `prusa-slicer`. Product versions and upstream profile compatibility versions must not be conflated.
+
+Application updates use Infiltrator releases and the Infiltrator APT repository. The inherited PrusaSlicer application updater and startup usage-report prompt are disabled. Printer profile repositories and optional printer/service integrations remain compatibility features with their original provider names.

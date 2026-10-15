@@ -68,7 +68,7 @@ try {
         }
     }
 
-    $ConsoleExecutable = Join-Path $InstallDir 'prusa-slicer-console.exe'
+    $ConsoleExecutable = Join-Path $InstallDir 'slicer-console.exe'
     if (-not (Test-Path -LiteralPath $ConsoleExecutable -PathType Leaf)) {
         throw "Installer did not extract the Slicer console executable."
     }
@@ -76,7 +76,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Installed Slicer console executable failed its --help smoke test."
     }
-    $VersionPattern = '(?m)^PrusaSlicer-' + [regex]::Escape($ExpectedVersion) + '(?![\d.])[^\r\n]*'
+    $VersionPattern = '(?m)^Slicer-' + [regex]::Escape($ExpectedVersion) + '(?![\d.])[^\r\n]*'
     $VersionMatch = [regex]::Match($HelpOutput, $VersionPattern)
     if (-not $VersionMatch.Success) {
         throw "Installed Slicer reports an unexpected version: $HelpOutput"

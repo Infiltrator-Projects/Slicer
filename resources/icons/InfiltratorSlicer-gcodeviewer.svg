@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<title>Slicer G-code Viewer</title>
+<rect x="0" y="0" width="256" height="256" rx="48" fill="#101e30"/>
+<polygon points="128,152 216,194 128,236 40,194" fill="#125265"/>
+<polygon points="128,108 216,150 128,192 40,150" fill="#46a9ff"/>
+<polygon points="128,64 216,106 128,148 40,106" fill="#d4fff7"/>
+<path d="M64 150 L128 180 L192 150" fill="none" stroke="#101e30" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+<polygon points="112,85 112,127 151,106" fill="#164b78"/>
+</svg>

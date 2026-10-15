@@ -144,7 +144,7 @@ else
 fi
 
 DESTDIR="$stage" cmake --install "$app_build"
-[[ -x "$stage/usr/bin/prusa-slicer" ]] ||
+[[ -x "$stage/usr/bin/slicer" ]] ||
     fail "installed Slicer executable is missing"
 
 mkdir -p "$metadata/debian"
@@ -163,7 +163,7 @@ EOF
 
 depends=$(
     cd "$metadata"
-    dpkg-shlibdeps -O -e"$stage/usr/bin/prusa-slicer" |
+    dpkg-shlibdeps -O -e"$stage/usr/bin/slicer" |
         sed -n 's/^shlibs:Depends=//p'
 )
 [[ -n "$depends" ]] || fail "dpkg-shlibdeps produced no runtime dependency set"

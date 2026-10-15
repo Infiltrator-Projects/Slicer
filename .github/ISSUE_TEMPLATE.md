@@ -1,27 +1,22 @@
-### Version
-_Version of PrusaSlicer used goes here_
+### Slicer product version
 
-_Use `About->About PrusaSlicer` for release versions_
+Copy the version from `Help -> About Slicer`, or include the source commit from `git rev-parse HEAD` for a development build. Example: `0.0.1`.
 
-_For -dev versions, use `git describe --tag` or get the hash value for the version you downloaded or `git rev-parse HEAD`_
+### Operating system
 
-### Operating system type + version
-_What OS are you using, and state any version #s_
-_In case of 3D rendering issues, please attach the content of menu Help -> System Info dialog_
+Include the OS version and whether you installed the Linux DEB, Windows EXE, or built from source. For rendering problems, include `Help -> System Info`.
 
-### 3D printer brand / version + firmware version (if known)
-_What 3D printer brand / version are you printing on, is it a stock model or did you modify the printer, what firmware is running on your printer, version of the firmware #s_
+### Printer and firmware
 
-### Behavior
-* _Describe the problem_
-* _Steps needed to reproduce the problem_
-  * _If this is a command-line slicing issue, include the options used_
-* _Expected Results_
-* _Actual Results_
-  * _Screenshots from __*PrusaSlicer*__ preview are preferred_
+Include the printer model, relevant modifications, and firmware version when the issue involves slicing or printing.
 
-_Is this a new feature request?_
+### Problem and reproduction
 
-#### Project File (.3MF) where problem occurs
-_Upload a PrusaSlicer Project File (.3MF) (`Plater -> Export plate as 3MF` for Slic3r PE 1.41.2 and older, `File -> Save` / `Save Project` for PrusaSlicer, Slic3r PE 1.42.0-alpha and newer)_
-_Images (PNG, GIF, JPEG), PDFs or text files could be drag & dropped to the issue directly, while all other files need to be zipped first (.zip, .gz)_
+- What happened, and what did you expect?
+- Which steps reproduce it?
+- For CLI issues, include the command and options.
+- Include screenshots when useful.
+
+### Project file
+
+Save the project with `File -> Save Project As`, zip the `.3mf`, and attach it when needed to reproduce the issue. Check it for information you do not want to publish.

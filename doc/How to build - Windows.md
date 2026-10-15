@@ -1,117 +1,47 @@
-# Building PrusaSlicer on Windows
+# Build Infiltrator Slicer on Windows
 
+The qualified Windows installer targets x64. CI uses the hosted `windows-2022` image and Visual Studio 2022.
 
-## 0. Prerequisities
+## Prerequisites
 
-The following tools need to be installed on your computer:
-- Microsoft Visual Studio version 16 2019 or 17 2022
-- CMake
-- git
+Install PowerShell 7, Git, CMake 3.18.5 or newer, Python 3, Visual Studio 2022 with the x64 C++ build tools and Windows SDK, and Inno Setup 6. The repository preflight checks the selected compiler and executable launch before the long build.
 
+## Build the installer
 
+Use a short checkout path, such as `C:\src\Slicer`, then run from PowerShell 7:
 
-
-## 1. Download sources
-
-Clone the respository. Use a directory relatively close to the drive root, so the path is not too long. Avoid spaces and non-ASCII characters. To place it in `C:\src\PrusaSlicer`, run:
-```
-c:> mkdir src
-c:> cd src
-c:\src> git clone https://github.com/prusa3d/PrusaSlicer.git
+```powershell
+git clone https://github.com/Infiltrator-Projects/Slicer.git C:\src\Slicer
+Set-Location C:\src\Slicer
+python support/verify-vendor.py
+./support/windows/check-runner.ps1
+./support/windows/build-release.ps1
 ```
 
+The release helper builds Release dependencies, initializes the selected Visual Studio SDK environment, configures only the application's Release configuration, builds it, checks its help banner, and packages the exact payload with Inno Setup. The output for product version 0.0.1 is `dist\slicer-0.0.1-windows.exe`.
 
-## 2.A Manual Build Instructions
+To retain a completed dependency prefix while iterating on the application:
 
-_As an alternative, you can go to 2.B to compile PrusaSlicer using one automatic script._
-
-### Compile the dependencies.
-Dependencies are updated seldomly, thus they are compiled out of the PrusaSlicer source tree.
-Open the MSVC x64 Native Tools Command Prompt and run the following:
-```
-cd c:\src\PrusaSlicer\deps
-mkdir build
-cd build
-cmake ..
-cmake --build .
-```
-Expect this to take some time. Note that both _Debug_ and _Release_ variants are built. You can force only the _Release_ build by passing `-DDEP_DEBUG=OFF` to the first CMake call.
-
-### Generate Visual Studio project file for PrusaSlicer, referencing the precompiled dependencies.
-Open the MSVC x64 Native Tools Command Prompt and run the following:
-```
-cd c:\src\PrusaSlicer\
-mkdir build
-cd build
-cmake .. -DCMAKE_PREFIX_PATH="c:\src\PrusaSlicer\deps\build\destdir\usr\local"
+```powershell
+./support/windows/build-release.ps1 -DependenciesOnly
+./support/windows/build-release.ps1 -UseCachedDependencies
 ```
 
-Note that `CMAKE_PREFIX_PATH` must be absolute path. A relative path will not work.
+Reuse only the dependency prefix built for the same architecture, configuration, toolchain, and dependency source definitions. CI enforces an exact cache key and saves completed dependencies before application compilation.
 
-### Compile PrusaSlicer. 
+## Qualify the exact installer
 
-Double-click c:\src\PrusaSlicer\build\PrusaSlicer.sln to open in Visual Studio and select `PrusaSlicer_app_gui` as your startup project (right-click->Set as Startup Project).
-
-Run Build->Rebuild Solution once to populate all required dependency modules. This is NOT done automatically when you Build/Run. If you run both Debug and Release variants, you will need to do this once for each.
-
-Debug->Start Debugging or press F5
-
-PrusaSlicer should start. You're up and running!
-
-### Running Unit Tests
-
-For the most complete unit testing, use the Debug build option `-DCMAKE_BUILD_TYPE=Debug` when running cmake.
-Without the Debug build, internal assert statements are not tested.
-
-To run the unit tests:
-
-    cd build
-    make test
-
-
-To run a specific unit test:
-
-    cd build\tests
-
-The unit tests can be found by
-
-    `dir *\*_tests`
-
-Any of these unit tests can be run directly e.g.
-
-    `.\fff_print\fff_print_tests`
-
-## 2.B Run the automatic build script
-
-_This is an alternative to the manual build described above. It relies on `build_win.bat` script which is part of the repository and which will find the MSVC installation, set up the build environment and build the dependencies and PrusaSlicer itself. The script was provided by @jschuh and PrusaSlicer team does not maintain it._
-
-Just run the following command to get everything going with the default configs:
-
-```
-c:\src>cd c:\src\PrusaSlicer
-c:\src\PrusaSlicer>build_win.bat -d=..\PrusaSlicer-deps -r=console
+```powershell
+./support/windows/qualify-installer.ps1 `
+  -Artifact ./dist/slicer-0.0.1-windows.exe -ExpectedVersion 0.0.1
 ```
 
-The build script will run for a while and automatically perform the following steps:
-1. Configure and build [deps](#compile-the-dependencies) as RelWithDebInfo with `c:\src\PrusaSlicer-deps` as the destination directory
-2. Configure and build all [application targets](#compile-prusaslicer) as RelWithDebInfo
-3. Launch the resulting `prusa-slicer-console.exe` binary
+Qualification installs the real payload into a unique temporary directory, checks its product-version help banner, and removes the temporary installation. CI smoke mode avoids normal uninstall registration and shortcuts.
 
-You can change the above command line options to do things like:
-* Change the destination for the dependencies by pointing `-d` to a different directory such as: `build_win.bat -d=s:\PrusaSlicerDeps`
-* Open the solution in Visual Studio after the build completes by changing the `-r` switch to `-r=ide`
-* Generate a release build without debug info by adding `-c=Release` or a full debug build with `-c=Debug`
-* Perform an incremental application build (the default) with: `build_win.bat -s=app-dirty`
-* Clean and rebuild the application: `build_win.bat -s=app`
-* Clean and rebuild the dependencies: `build_win.bat -s=deps`
-* Clean and rebuild everything (app and deps): `build_win.bat -s=all`
-* _The full list of build script options can be listed by running:_ `build_win.bat -?`
+For development test runs:
 
-#### Troubleshooting
+```powershell
+ctest --test-dir build -C Release --output-on-failure
+```
 
-You're best off initiating builds from within Visual Studio for day-to-day development. However, the `build_win.bat` script can be very helpful if you run into build failures after updating your source tree. Here are some tips to keep in mind:
-* The last several lines of output from `build_win.bat` will usually have the most helpful error messages.
-* If CMake complains about missing binaries or paths (e.g. after updating Visual Studio), building with `build_win.bat` will force CMake to regenerate its cache on an error.
-* After a deps change, you may just need to rebuild everything with the `-s=all` switch.
-* Reading through the instructions in the next section may help diagnose more complex issues.
-
+The upstream `build_win.bat` remains available for development configurations. Public release packaging uses the repository-owned helper above. See [release engineering](RELEASE_ENGINE.md) for automatic publication and recovery from a failed sealing job.

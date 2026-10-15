@@ -126,6 +126,7 @@ void PreferencesDialog::show(const std::string& highlight_opt_key /*= std::strin
 	if (m_optgroup_gui && m_optgroup_gui->get_field("notify_release") != nullptr) {
 		boost::any val = s_keys_map_NotifyReleaseMode.at(wxGetApp().app_config->get("notify_release"));
 		m_optgroup_gui->get_field("notify_release")->set_value(val, false);
+		m_optgroup_gui->get_field("notify_release")->disable();
 	}
 	
 
@@ -327,13 +328,13 @@ void PreferencesDialog::build()
 #ifdef _WIN32
 		// Please keep in sync with ConfigWizard
 		append_bool_option(m_optgroup_general, "associate_3mf",
-			L("Associate .3mf files to PrusaSlicer"),
-			L("If enabled, sets PrusaSlicer as default application to open .3mf files."),
+			L("Associate .3mf files to Slicer"),
+			L("If enabled, sets Slicer as default application to open .3mf files."),
 			app_config->get_bool("associate_3mf"));
 
 		append_bool_option(m_optgroup_general, "associate_stl",
-			L("Associate .stl files to PrusaSlicer"),
-			L("If enabled, sets PrusaSlicer as default application to open .stl files."),
+			L("Associate .stl files to Slicer"),
+			L("If enabled, sets Slicer as default application to open .stl files."),
 			app_config->get_bool("associate_stl"));
 #endif // _WIN32
 
@@ -372,12 +373,12 @@ void PreferencesDialog::build()
 
 		append_bool_option(m_optgroup_general, "single_instance",
 #if __APPLE__
-			L("Allow just a single PrusaSlicer instance"),
+			L("Allow just a single Slicer instance"),
 			L("On OSX there is always only one instance of app running by default. However it is allowed to run multiple instances "
 			  "of same app from the command line. In such case this settings will allow only one instance."),
 #else
-			L("Allow just a single PrusaSlicer instance"),
-			L("If this is enabled, when starting PrusaSlicer and another instance of the same PrusaSlicer is already running, that instance will be reactivated instead."),
+			L("Allow just a single Slicer instance"),
+			L("If this is enabled, when starting Slicer and another instance of the same Slicer is already running, that instance will be reactivated instead."),
 #endif
 		app_config->has("single_instance") ? app_config->get_bool("single_instance") : false );
 
@@ -386,7 +387,7 @@ void PreferencesDialog::build()
 		append_bool_option(m_optgroup_general, "default_action_on_dirty_project",
 			L("Ask for unsaved changes in project"),
 			L("Always ask for unsaved changes in project, when: \n"
-						"- Closing PrusaSlicer,\n"
+						"- Closing Slicer,\n"
 						"- Loading or creating a new project"),
 			app_config->get("default_action_on_dirty_project").empty());
 
@@ -395,7 +396,7 @@ void PreferencesDialog::build()
 		append_bool_option(m_optgroup_general, "default_action_on_close_application",
 			L("Ask to save unsaved changes in presets when closing the application or when loading a new project"),
 			L("Always ask for unsaved changes in presets, when: \n"
-						"- Closing PrusaSlicer while some presets are modified,\n"
+						"- Closing Slicer while some presets are modified,\n"
 						"- Loading a new project while some presets are modified"),
 			app_config->get("default_action_on_close_application") == "none");
 
@@ -412,12 +413,12 @@ void PreferencesDialog::build()
 #ifdef _WIN32
 	else {
 		append_bool_option(m_optgroup_general, "associate_gcode",
-			L("Associate .gcode files to PrusaSlicer G-code Viewer"),
-			L("If enabled, sets PrusaSlicer G-code Viewer as default application to open .gcode files."),
+			L("Associate .gcode files to Slicer G-code Viewer"),
+			L("If enabled, sets Slicer G-code Viewer as default application to open .gcode files."),
 			app_config->get_bool("associate_gcode"));
 		append_bool_option(m_optgroup_general, "associate_bgcode",
-			L("Associate .bgcode files to PrusaSlicer G-code Viewer"),
-			L("If enabled, sets PrusaSlicer G-code Viewer as default application to open .bgcode files."),
+			L("Associate .bgcode files to Slicer G-code Viewer"),
+			L("If enabled, sets Slicer G-code Viewer as default application to open .bgcode files."),
 			app_config->get_bool("associate_bgcode"));
 	}
 #endif // _WIN32
@@ -440,7 +441,7 @@ void PreferencesDialog::build()
 
 	append_bool_option(m_optgroup_general, "restore_win_position",
 		L("Restore window position on start"),
-		L("If enabled, PrusaSlicer will be open at the position it was closed"),
+		L("If enabled, Slicer will be open at the position it was closed"),
 		app_config->get_bool("restore_win_position"));
 
     // Clear Undo / Redo stack on new project
@@ -530,7 +531,7 @@ void PreferencesDialog::build()
 /*
 		append_bool_option(m_optgroup_gui, "suppress_hyperlinks",
 			L("Suppress to open hyperlink in browser"),
-			L("If enabled, PrusaSlicer will not open a hyperlinks in your browser."),
+			L("If enabled, Slicer will not open a hyperlinks in your browser."),
 			//L("If enabled, the descriptions of configuration parameters in settings tabs wouldn't work as hyperlinks. "
 			//  "If disabled, the descriptions of configuration parameters in settings tabs will work as hyperlinks."),
 			app_config->get_bool("suppress_hyperlinks"));
@@ -572,8 +573,8 @@ void PreferencesDialog::build()
 			app_config->get_bool("show_hints"));
 
 		append_enum_option<NotifyReleaseMode>(m_optgroup_gui, "notify_release",
-			L("Notify about new releases"),
-			L("You will be notified about new release after startup acordingly: All = Regular release and alpha / beta releases. Release only = regular release."),
+			L("Application updates via Infiltrator releases / APT"),
+			L("Application updates are provided by Infiltrator releases or your package manager. Use Help > Software Releases to check available versions."),
 			new ConfigOptionEnum<NotifyReleaseMode>(static_cast<NotifyReleaseMode>(s_keys_map_NotifyReleaseMode.at(app_config->get("notify_release")))),
 			{ { "all", L("All") },
 			  { "release", L("Release only") },
@@ -594,6 +595,7 @@ void PreferencesDialog::build()
 		// set Field for notify_release to its value to activate the object
 		boost::any val = s_keys_map_NotifyReleaseMode.at(app_config->get("notify_release"));
 		m_optgroup_gui->get_field("notify_release")->set_value(val, false);
+		m_optgroup_gui->get_field("notify_release")->disable();
 
 		create_icon_size_slider();
 		m_icon_size_sizer->ShowItems(app_config->get_bool("use_custom_toolbar_size"));
@@ -624,24 +626,24 @@ void PreferencesDialog::build()
 
 		append_bool_option(m_optgroup_other, "suppress_hyperlinks",
 			L("Suppress to open hyperlink in browser"),
-			L("If enabled, PrusaSlicer will not open a hyperlinks in your browser."),
+			L("If enabled, Slicer will not open a hyperlinks in your browser."),
 			//L("If enabled, the descriptions of configuration parameters in settings tabs wouldn't work as hyperlinks. "
 			//  "If disabled, the descriptions of configuration parameters in settings tabs will work as hyperlinks."),
 			app_config->get_bool("suppress_hyperlinks"));
 
 		append_bool_option(m_optgroup_other, "show_step_import_parameters",
 			L("Show STEP file import parameters"),
-			L("If enabled, PrusaSlicer will show a dialog with quality selection when importing a STEP file."),
+			L("If enabled, Slicer will show a dialog with quality selection when importing a STEP file."),
 			app_config->get_bool("show_step_import_parameters"));
 
 		append_bool_option(m_optgroup_other, "show_login_button",
 			L("Show \"Log in\" button in application top bar"),
-			L("If enabled, PrusaSlicer will show up \"Log in\" button in application top bar."),
+			L("If enabled, Slicer will show up \"Log in\" button in application top bar."),
 			app_config->get_bool("show_login_button"));
 
 		append_bool_option(m_optgroup_other, "downloader_url_registered",
 			L("Allow downloads from supported websites (e.g. Printables.com)"),
-			L("If enabled, PrusaSlicer can download and open files from supported websites"),
+			L("If enabled, Slicer can download and open files from supported websites"),
 			app_config->get_bool("downloader_url_registered"));
 
 		activate_options_tab(m_optgroup_other);
