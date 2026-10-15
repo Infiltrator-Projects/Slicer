@@ -76,7 +76,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "Built executable reports: $VersionOutput"
 
 $IsccPath = $null
-$IsccCommand = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+$IsccCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 if ($null -ne $IsccCommand) {
     $IsccPath = $IsccCommand.Source
 }

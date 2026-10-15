@@ -53,7 +53,7 @@ function Get-SlicerVisualStudio {
 }
 
 function Get-RequiredCommand([string]$Name) {
-    $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue
+    $Command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $Command) {
         throw "The Windows build runner is missing $Name."
     }
@@ -80,7 +80,7 @@ if ($LASTEXITCODE -ne 0) { throw "git.exe could not run." }
 
 $Python = $null
 foreach ($Name in @("python3.exe", "python.exe")) {
-    $Candidate = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue
+    $Candidate = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $Candidate) { continue }
     try {
         $PythonVersion = (& $Candidate.Source --version 2>&1 | Out-String).Trim()
