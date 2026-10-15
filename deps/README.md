@@ -1,4 +1,4 @@
-# PrusaSlicer dependencies
+# Slicer dependencies
 
 This folder is a top level CMake project to build the dependent libraries for PrusaSlicer. It can be configured and built in the standard CMake way using the commands:
 
@@ -7,7 +7,7 @@ cmake ..
 cmake --build .
 ```
 
-Each dependency is specified in a separate folder prefixed with the `+` sign. The underlying framework to download and build external projects is CMake's ExternalProject module. No other tool (e.g. Python) is involved in the process.
+Each dependency is specified in a separate folder prefixed with the `+` sign. CMake's ExternalProject module verifies, extracts, and builds the pinned archives checked into `vendor/`; it does not fetch dependency sources from upstream servers. See [vendor/README.md](vendor/README.md) for the manifest, license notices, and update procedure. CMake 3.18.5 or later is required. The CMake build uses no Python; Verify CI separately runs `python3 support/verify-vendor.py` to check every bundled archive before building.
 All the standard CMake switches work as expected, -G<generator> for alternative build file generators like Ninja or Visual Studio projects.
 Important toolchain configuration variables are forwarded to each package build script if they happen to be CMake based. Otherwise they
 are forwarded to the appropriate build system of a particular library package.

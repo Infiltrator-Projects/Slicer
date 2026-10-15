@@ -5,18 +5,24 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build and qualify
+        type: choice
+        options: [all, linux, windows]
+        default: all
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-${{ github.repository }}-${{ github.ref_name }}
+  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
   cancel-in-progress: true
 
 jobs:
   source:
     name: Verify release contract
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, linux-native]
     timeout-minutes: 10
     steps:
       - name: Check out exact source
@@ -36,6 +42,7 @@ jobs:
 
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
+          python3 support/verify-vendor.py
 
           if grep -REn --include='*.yml' --include='*.yaml' \
             'uses:[[:space:]]+Prusa-Development/PrusaSlicer-Actions' \
@@ -69,7 +76,8 @@ jobs:
   linux-release:
     name: Build and qualify Linux .deb
     needs: source
-    runs-on: ubuntu-24.04
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'windows'
+    runs-on: [self-hosted, Linux, X64, linux-native, bigbedroom]
     timeout-minutes: 120
     steps:
       - name: Check out exact verified source
@@ -77,15 +85,32 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install supported PrusaSlicer build prerequisites
+      - name: Prepare self-hosted Linux build prerequisites
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            autoconf build-essential cmake dpkg-dev git \
-            libdbus-1-dev libglu1-mesa-dev libgtk-3-dev \
-            libwebkit2gtk-4.1-dev texinfo xauth xvfb
+          set -euo pipefail
+          printf 'Runner: %s (%s/%s)\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          packages=(autoconf build-essential cmake dpkg-dev git python3 perl pkg-config
+            libdbus-1-dev libglu1-mesa-dev libgtk-3-dev
+            libhidapi-dev libwebkit2gtk-4.1-dev texinfo xauth xvfb)
+          missing=()
+          for package in "${packages[@]}"; do
+            if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+              missing+=("$package")
+            fi
+          done
+          if ((${#missing[@]})); then
+            printf 'Missing build packages: %s\n' "${missing[*]}"
+            if ! sudo -n true 2>/dev/null; then
+              printf 'One-time setup required on this Linux host: sudo apt-get install -y --no-install-recommends'
+              printf ' %q' "${missing[@]}"
+              printf '\nRun that command in an administrator terminal on this host, then rerun Verify.\n' >&2
+              exit 1
+            fi
+            sudo -n apt-get update
+            sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
 
       - name: Build release package once
         shell: bash
@@ -104,9 +129,12 @@ jobs:
           test "$(dpkg-deb -f "$deb" Version)" = "$version"
           test "$(dpkg-deb -f "$deb" Architecture)" = "amd64"
           dpkg-deb --contents "$deb" | grep -F './usr/bin/prusa-slicer' >/dev/null
-          sudo apt-get install -y "./$deb"
-          xvfb-run -a /usr/bin/prusa-slicer --version
-          sudo dpkg -r infiltrator-slicer
+          # Exercise the exact packaged executable without replacing an app
+          # installed on this persistent runner.
+          smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-deb-smoke.XXXXXX")
+          trap 'rm -rf -- "$smoke_root"' EXIT
+          dpkg-deb --extract "$deb" "$smoke_root"
+          xvfb-run -a "$smoke_root/usr/bin/prusa-slicer" --version
 
       - name: Upload exact Linux release candidate
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -121,9 +149,8 @@ jobs:
   windows-release:
     name: Build and qualify Windows .exe
     needs: source
-    # PrusaSlicer 2.9.6's build_win.bat explicitly supports Visual Studio
-    # 2019/2022. Pin the hosted image to VS2022 instead of inheriting the
-    # moving Windows 2025 image, which now carries VS2026.
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'linux'
+    # Use the hosted VS2022 toolchain for the Windows x64 release.
     runs-on: windows-2022
     timeout-minutes: 120
     steps:
@@ -132,12 +159,37 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Check Windows runner and x64 toolchain
+        shell: pwsh
+        run: '& ./support/windows/check-runner.ps1'
+
       - name: Ensure Inno Setup 6 is available
         shell: pwsh
         run: |
           if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
               -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
               choco install innosetup -y --no-progress
+          }
+
+      - name: Validate installer source before the long build
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Fixture = Join-Path $env:RUNNER_TEMP ('slicer-installer-syntax-' + [guid]::NewGuid().ToString('N'))
+          try {
+              $Payload = Join-Path $Fixture 'build\src\Release'
+              $Resources = Join-Path $Fixture 'resources'
+              $Output = Join-Path $Fixture 'output'
+              New-Item -ItemType Directory -Force -Path $Payload, $Resources, $Output | Out-Null
+              Set-Content (Join-Path $Payload 'prusa-slicer.exe') 'Installer syntax fixture'
+              Set-Content (Join-Path $Resources 'fixture.txt') 'Installer syntax fixture'
+              $Iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+              $Compiler = if ($Iscc) { $Iscc.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+              $Version = (Get-Content support/VERSION -Raw).Trim()
+              & $Compiler "/DRepoRoot=$Fixture" "/DAppVersion=$Version" "/DOutputDir=$Output" ./support/windows/installer.iss
+              if ($LASTEXITCODE -ne 0) { throw 'Installer source failed compilation.' }
+          } finally {
+              if (Test-Path $Fixture) { Remove-Item $Fixture -Recurse -Force }
           }
 
       - name: Build Windows release installer once
@@ -152,22 +204,7 @@ jobs:
           if (-not (Test-Path $Artifact -PathType Leaf)) {
               throw "Missing Windows release artifact: $Artifact"
           }
-          $Bytes = [System.IO.File]::ReadAllBytes((Resolve-Path $Artifact))
-          if ($Bytes.Length -lt 2 -or $Bytes[0] -ne 0x4D -or $Bytes[1] -ne 0x5A) {
-              throw "Windows release artifact is not a PE executable."
-          }
-
-          $InstallDir = Join-Path $env:RUNNER_TEMP "slicer-install-smoke"
-          $Process = Start-Process -FilePath (Resolve-Path $Artifact) `
-              -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$InstallDir") `
-              -Wait -PassThru
-          if ($Process.ExitCode -ne 0) {
-              throw "Windows installer smoke test failed with exit code $($Process.ExitCode)."
-          }
-          & (Join-Path $InstallDir 'prusa-slicer-console.exe') --version
-          if ($LASTEXITCODE -ne 0) {
-              throw "Installed Slicer console executable failed its --version smoke test."
-          }
+          & ./support/windows/qualify-installer.ps1 -Artifact $Artifact -ExpectedVersion $Version
 
       - name: Upload exact Windows release candidate
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -180,9 +217,12 @@ jobs:
   release-assets:
     name: Seal exact qualified release assets
     needs: [linux-release, windows-release]
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, X64, linux-native]
     timeout-minutes: 5
     steps:
+      - name: Clean prior bundle outputs
+        run: rm -rf -- candidate-linux candidate-windows release
+
       - name: Download exact Linux candidate
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
@@ -204,7 +244,7 @@ jobs:
           expected_deb="infiltrator-slicer_${version}_amd64.deb"
           expected_windows="slicer-${version}-windows.exe"
 
-          mapfile -t debs < <(find candidate-linux -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
+          mapfile -t debs < <(find candidate-linux/dist -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
           mapfile -t windows_apps < <(find candidate-windows -maxdepth 1 -type f -name '*.exe' -printf '%f\n' | sort)
           test "${#debs[@]}" -eq 1
           test "${#windows_apps[@]}" -eq 1
@@ -212,7 +252,7 @@ jobs:
           test "${windows_apps[0]}" = "$expected_windows"
 
           mkdir release
-          cp "candidate-linux/$expected_deb" "release/$expected_deb"
+          cp "candidate-linux/dist/$expected_deb" "release/$expected_deb"
           cp "candidate-windows/$expected_windows" "release/$expected_windows"
 
           test "$(dpkg-deb -f "release/$expected_deb" Package)" = "infiltrator-slicer"

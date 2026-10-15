@@ -64,7 +64,7 @@ done
 [[ -f CMakeLists.txt && -f version.inc && -f support/VERSION ]] ||
     fail "run this script from the Slicer repository root"
 
-for tool in awk cmake dpkg dpkg-deb dpkg-shlibdeps du sed; do
+for tool in awk cmake dpkg dpkg-deb dpkg-shlibdeps du sed pkg-config; do
     command -v "$tool" >/dev/null 2>&1 || fail "$tool is required"
 done
 
@@ -77,6 +77,11 @@ version=$(tr -d '[:space:]' < support/VERSION)
 cmake_version=$(sed -n 's/^set(SLIC3R_VERSION "\([^"]*\)").*/\1/p' version.inc)
 [[ "$cmake_version" == "$version" ]] ||
     fail "support/VERSION ($version) does not match version.inc ($cmake_version)"
+
+# Check the app's system HID backend before the long dependency build.
+if ! pkg-config --exists hidapi-hidraw && ! pkg-config --exists hidapi-libusb; then
+    fail "HIDAPI development files are required; install libhidapi-dev before building."
+fi
 
 if [[ -z "$jobs" ]]; then
     if command -v nproc >/dev/null 2>&1; then
