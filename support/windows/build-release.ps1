@@ -24,6 +24,37 @@ function Resolve-BuildPath([string]$Path) {
     return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $Path))
 }
 
+function Initialize-VisualStudioEnvironment([string]$DevCmd) {
+    $TemporaryRoot = $env:RUNNER_TEMP
+    if ([string]::IsNullOrWhiteSpace($TemporaryRoot)) {
+        $TemporaryRoot = [System.IO.Path]::GetTempPath()
+    }
+    $EnvironmentScript = Join-Path $TemporaryRoot ("slicer-vs-env-" + [guid]::NewGuid().ToString("N") + ".cmd")
+    $OldDevCmd = $env:SLICER_RELEASE_VSDEVCMD
+    try {
+        $env:SLICER_RELEASE_VSDEVCMD = $DevCmd
+        Set-Content -LiteralPath $EnvironmentScript -Encoding ASCII -Value @'
+@echo off
+call "%SLICER_RELEASE_VSDEVCMD%" -arch=x64 -host_arch=x64 -app_platform=Desktop >nul
+if errorlevel 1 exit /b %errorlevel%
+set
+'@
+        # Capture the environment privately; it may include CI credentials.
+        $EnvironmentLines = @(& $env:ComSpec /d /c $EnvironmentScript)
+        if ($LASTEXITCODE -ne 0) {
+            Fail "Visual Studio environment initialization failed with exit code $LASTEXITCODE."
+        }
+        foreach ($Line in $EnvironmentLines) {
+            if ($Line -match '^([^=]+)=(.*)$') {
+                [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2], 'Process')
+            }
+        }
+    } finally {
+        $env:SLICER_RELEASE_VSDEVCMD = $OldDevCmd
+        Remove-Item -LiteralPath $EnvironmentScript -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $Version = (Get-Content (Join-Path $RepoRoot "support\VERSION") -Raw).Trim()
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     Fail "support/VERSION is not a numeric semantic version."
@@ -76,6 +107,9 @@ else {
 if ($DependenciesOnly) {
     return
 }
+
+# CMake find_library also needs the SDK LIB paths supplied by VsDevCmd.
+Initialize-VisualStudioEnvironment $Toolchain.DevCmd
 
 # Release dependencies contain no Debug libraries. The developer batch driver
 # exposes every configuration, which makes OpenVDB require its missing Debug lib.
