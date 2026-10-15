@@ -247,8 +247,8 @@ jobs:
   release-assets:
     name: Seal exact qualified release assets
     needs: [linux-release, windows-release]
-    runs-on: [self-hosted, Linux, X64, linux-native]
-    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Clean prior bundle outputs
         run: rm -rf -- candidate-linux candidate-windows release
