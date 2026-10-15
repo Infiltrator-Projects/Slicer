@@ -121,7 +121,10 @@ jobs:
   windows-release:
     name: Build and qualify Windows .exe
     needs: source
-    runs-on: windows-2025
+    # PrusaSlicer 2.9.6's build_win.bat explicitly supports Visual Studio
+    # 2019/2022. Pin the hosted image to VS2022 instead of inheriting the
+    # moving Windows 2025 image, which now carries VS2026.
+    runs-on: windows-2022
     timeout-minutes: 120
     steps:
       - name: Check out exact verified source
