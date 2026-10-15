@@ -1,0 +1,321 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      qualified_run_id:
+        description: "Verify push-to-main run whose Linux and Windows qualification passed"
+        required: true
+        type: string
+  workflow_run:
+    workflows: ["Verify"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: publish-release-${{ github.repository }}
+  cancel-in-progress: false
+
+# Verify is the only producer of release binaries. Publication consumes the
+# exact qualified bytes from Verify and never rebuilds them. Manual recovery
+# repeats sealing only when both platform qualification jobs already passed.
+# GitHub itself supplies the source .zip and .tar.gz for the release tag.
+
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    permissions:
+      actions: read
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      QUALIFIED_RUN_ID: ${{ inputs.qualified_run_id || github.event.workflow_run.id }}
+
+    steps:
+      - name: Validate qualified source run
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            test "$GITHUB_REF" = refs/heads/main
+            mkdir -p candidate-linux candidate-windows
+          fi
+          [[ "$QUALIFIED_RUN_ID" =~ ^[0-9]+$ ]]
+          gh api "repos/${GH_REPO}/actions/runs/${QUALIFIED_RUN_ID}" > qualified-run.json
+          jq -e --arg repo "$GH_REPO" '
+            .repository.full_name == $repo and .head_repository.full_name == $repo and
+            .path == ".github/workflows/ci.yml" and .event == "push" and
+            .head_branch == "main" and (.head_sha | test("^[0-9a-f]{40}$"))
+          ' qualified-run.json > /dev/null
+          source_sha=$(jq -r '.head_sha' qualified-run.json)
+          gh api "repos/${GH_REPO}/actions/runs/${QUALIFIED_RUN_ID}/jobs?filter=latest&per_page=100" > qualified-jobs.json
+          jq -e '.total_count < 100 and (.jobs | length) == .total_count' qualified-jobs.json > /dev/null
+          for job in 'Verify release contract' 'Build and qualify Linux .deb' 'Build and qualify Windows .exe'; do
+            jq -e --arg job "$job" '
+              [.jobs[] | select(.name == $job)] |
+              length == 1 and .[0].status == "completed" and .[0].conclusion == "success"
+            ' qualified-jobs.json > /dev/null
+          done
+          printf 'SOURCE_SHA=%s\n' "$source_sha" >> "$GITHUB_ENV"
+          printf 'Using qualified Verify run %s at source %s.\n' "$QUALIFIED_RUN_ID" "$source_sha"
+
+      - name: Download sealed qualified release bundle
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: slicer-release-assets
+          path: release
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.QUALIFIED_RUN_ID }}
+
+      - name: Download qualified Linux candidate for recovery
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: slicer-linux-release
+          path: candidate-linux
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.QUALIFIED_RUN_ID }}
+
+      - name: Download qualified Windows candidate for recovery
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: slicer-windows-release
+          path: candidate-windows
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ env.QUALIFIED_RUN_ID }}
+
+      - name: Seal existing qualified bytes for recovery
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < candidate-linux/support/VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          expected_deb="infiltrator-slicer_${version}_amd64.deb"
+          expected_windows="slicer-${version}-windows.exe"
+          mapfile -t debs < <(find candidate-linux/dist -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
+          mapfile -t windows_apps < <(find candidate-windows -maxdepth 1 -type f -name '*.exe' -printf '%f\n' | sort)
+          test "${#debs[@]}" -eq 1
+          test "${#windows_apps[@]}" -eq 1
+          test "${debs[0]}" = "$expected_deb"
+          test "${windows_apps[0]}" = "$expected_windows"
+          mkdir release
+          cp "candidate-linux/dist/$expected_deb" "release/$expected_deb"
+          cp "candidate-windows/$expected_windows" "release/$expected_windows"
+          test "$(dpkg-deb -f "release/$expected_deb" Package)" = "infiltrator-slicer"
+          test "$(dpkg-deb -f "release/$expected_deb" Version)" = "$version"
+          test "$(head -c 2 "release/$expected_windows")" = "MZ"
+          (
+            cd release
+            sha256sum "$expected_deb" "$expected_windows" > RELEASE_SHA256SUMS.txt
+            printf '%s\n' "$SOURCE_SHA" > RELEASE_SOURCE_SHA
+            printf '%s\n' "$version" > RELEASE_VERSION
+          )
+
+      - name: Publish or verify immutable release
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test "$(cat release/RELEASE_SOURCE_SHA)" = "$SOURCE_SHA"
+          version=$(tr -d '[:space:]' < release/RELEASE_VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v${version}"
+
+          (
+            cd release
+            sha256sum -c RELEASE_SHA256SUMS.txt
+          )
+
+          mapfile -t assets < <(
+            awk 'NF == 2 { name=$2; sub(/^\*/, "", name); print name }' \
+              release/RELEASE_SHA256SUMS.txt
+          )
+          test "${#assets[@]}" -eq 2
+          test "$(printf '%s\n' "${assets[@]}" | sort -u | wc -l)" -eq 2
+
+          deb=
+          windows_app=
+          asset_paths=()
+          for asset in "${assets[@]}"; do
+            [[ "$asset" != */* ]]
+            test -f "release/$asset"
+            asset_paths+=("release/$asset")
+            case "$asset" in
+              *.deb)
+                test -z "$deb"
+                deb="$asset"
+                ;;
+              *.exe)
+                test -z "$windows_app"
+                windows_app="$asset"
+                ;;
+              *)
+                printf 'Unexpected sealed release asset: %s\n' "$asset" >&2
+                exit 1
+                ;;
+            esac
+          done
+
+          test -n "$deb"
+          test -n "$windows_app"
+          test "$(dpkg-deb -f "release/$deb" Package)" = "infiltrator-slicer"
+          test "$(dpkg-deb -f "release/$deb" Version)" = "$version"
+          test "$(head -c 2 "release/$windows_app")" = "MZ"
+
+          current_main=$(gh api "repos/${GH_REPO}/git/ref/heads/main" --jq '.object.sha')
+          if [[ "$current_main" != "$SOURCE_SHA" ]]; then
+            gh api "repos/${GH_REPO}/compare/${SOURCE_SHA}...${current_main}" > source-comparison.json
+            if ! jq -e '
+              (.status == "ahead" or .status == "identical") and .behind_by == 0 and
+              (.files | type == "array" and length < 300) and
+              all(.files[];
+                (.filename | startswith(".github/workflows/")) and
+                ((.previous_filename // .filename) | startswith(".github/workflows/")))
+            ' source-comparison.json > /dev/null; then
+              printf 'Main %s differs from qualified source %s beyond safe workflow-only changes; refusing publication.\n' \
+                "$current_main" "$SOURCE_SHA" >&2
+              exit 1
+            fi
+          fi
+
+          tag_exists=false
+          tag_sha=
+          if tag_identity=$(gh api "repos/${GH_REPO}/git/ref/tags/${tag}" \
+              --jq '"\(.object.type) \(.object.sha)"' 2>/dev/null); then
+            read -r tag_type tag_sha <<<"$tag_identity"
+            if [[ "$tag_type" != "commit" ]]; then
+              printf 'Release tag %s is not a lightweight commit tag; refusing to reinterpret it.\n' \
+                "$tag" >&2
+              exit 1
+            fi
+
+            if [[ "$tag_sha" != "$SOURCE_SHA" ]]; then
+              if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+                printf 'Recovery tag %s must point to exact qualified source %s, but points to %s.\n' \
+                  "$tag" "$SOURCE_SHA" "$tag_sha" >&2
+                exit 1
+              fi
+              mapfile -t comparison < <(
+                gh api "repos/${GH_REPO}/compare/${tag_sha}...${SOURCE_SHA}" \
+                  --jq '(.files | length | tostring), (.files[].filename)'
+              )
+              test "${#comparison[@]}" -ge 1
+              changed_file_count="${comparison[0]}"
+              [[ "$changed_file_count" =~ ^[0-9]+$ ]]
+              if ((changed_file_count >= 300)); then
+                printf 'Version %s comparison reached GitHub file limits; refusing ambiguous same-version reuse.\n' \
+                  "$version" >&2
+                exit 1
+              fi
+
+              product_change=false
+              for changed_path in "${comparison[@]:1}"; do
+                case "$changed_path" in
+                  .github/workflows/*) ;;
+                  *) product_change=true ;;
+                esac
+              done
+
+              if [[ "$product_change" == true ]]; then
+                printf 'Version %s is already tagged at %s, but qualified main %s changes product or build source; advance support/VERSION.\n' \
+                  "$version" "$tag_sha" "$SOURCE_SHA" >&2
+                exit 1
+              fi
+
+              printf 'Version %s is already tagged at %s; qualified main %s changes workflows only, so there is no new release intent.\n' \
+                "$version" "$tag_sha" "$SOURCE_SHA"
+              exit 0
+            fi
+            tag_exists=true
+          fi
+
+          expected_assets=$(printf '%s\n' "${assets[@]}" | sort)
+
+          verify_release_bytes() {
+            local remote_assets tmp asset
+            remote_assets=$(gh release view "$tag" --json assets --jq '.assets[].name' | sort)
+            if [[ "$remote_assets" != "$expected_assets" ]]; then
+              printf 'Release %s has an unexpected asset set.\n' "$tag" >&2
+              return 1
+            fi
+
+            tmp=$(mktemp -d)
+            if ! gh release download "$tag" --dir "$tmp"; then
+              rm -rf "$tmp"
+              return 1
+            fi
+            for asset in "${assets[@]}"; do
+              if ! cmp -s "release/$asset" "$tmp/$asset"; then
+                printf 'Remote asset %s differs from the qualified artifact.\n' "$asset" >&2
+                rm -rf "$tmp"
+                return 1
+              fi
+            done
+            rm -rf "$tmp"
+          }
+
+          draft_exists=false
+          if gh release view "$tag" >/dev/null 2>&1; then
+            is_draft=$(gh release view "$tag" --json isDraft --jq '.isDraft')
+            if [[ "$is_draft" == true ]]; then
+              draft_exists=true
+              if [[ "$tag_exists" != true ]]; then
+                draft_target=$(gh release view "$tag" --json targetCommitish --jq '.targetCommitish')
+                if [[ "$draft_target" != "$SOURCE_SHA" ]]; then
+                  printf 'Draft %s targets %s instead of qualified source %s.\n' \
+                    "$tag" "$draft_target" "$SOURCE_SHA" >&2
+                  exit 1
+                fi
+              fi
+              echo "Restoring interrupted draft $tag from sealed qualified assets."
+              gh release upload "$tag" "${asset_paths[@]}" --clobber
+            else
+              test "$tag_exists" = true
+              verify_release_bytes
+              echo "Exact immutable release $tag already exists; verified qualified bytes."
+              exit 0
+            fi
+          fi
+
+          if [[ "$draft_exists" != true ]]; then
+            if [[ "$tag_exists" == true ]]; then
+              gh release create "$tag" "${asset_paths[@]}" \
+                --verify-tag \
+                --draft \
+                --title "Slicer $version" \
+                --notes "Verified Slicer ${version} release."
+            else
+              gh release create "$tag" "${asset_paths[@]}" \
+                --target "$SOURCE_SHA" \
+                --draft \
+                --title "Slicer $version" \
+                --notes "Verified Slicer ${version} release."
+            fi
+          fi
+
+          verify_release_bytes
+          gh release edit "$tag" --draft=false --latest
+          test "$(gh release view "$tag" --json isDraft --jq '.isDraft')" = false
+          read -r published_tag_type published_tag_sha < <(
+            gh api "repos/${GH_REPO}/git/ref/tags/${tag}" --jq '"\(.object.type) \(.object.sha)"'
+          )
+          test "$published_tag_type" = commit
+          test "$published_tag_sha" = "$SOURCE_SHA"
+          verify_release_bytes

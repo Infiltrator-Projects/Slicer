@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Infiltrator_Projects.Slicer</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>AGPL-3.0-or-later</project_license>
+  <name>Slicer</name>
+  <summary>Prepare 3D models for printing</summary>
+  <developer id="io.github.infiltrator-projects">
+    <name>Infiltrator Projects</name>
+  </developer>
+  <description>
+    <p>Slicer prepares 3D models for filament and resin printers, with printer profiles, print previews and G-code export.</p>
+  </description>
+  <launchable type="desktop-id">InfiltratorSlicer.desktop</launchable>
+  <icon type="stock">InfiltratorSlicer</icon>
+  <url type="homepage">https://github.com/Infiltrator-Projects/Slicer</url>
+  <url type="bugtracker">https://github.com/Infiltrator-Projects/Slicer/issues</url>
+  <url type="vcs-browser">https://github.com/Infiltrator-Projects/Slicer</url>
+  <categories>
+    <category>Graphics</category>
+    <category>Engineering</category>
+  </categories>
+  <provides>
+    <binary>slicer</binary>
+    <mediatype>model/stl</mediatype>
+    <mediatype>application/vnd.ms-3mfdocument</mediatype>
+  </provides>
+  <releases>
+    <release version="@SLIC3R_VERSION@" date="2026-10-16"/>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

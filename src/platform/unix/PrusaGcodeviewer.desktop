@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Slicer G-code Viewer
+Exec=slicer --gcodeviewer %F
+Icon=InfiltratorSlicer-gcodeviewer
+Terminal=false
+Type=Application
+MimeType=text/x.gcode;
+Categories=Graphics;3DGraphics;
+Keywords=3D;Printing;Slicer;

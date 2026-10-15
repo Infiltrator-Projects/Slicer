@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Slicer documentation
+    url: https://github.com/Infiltrator-Projects/Slicer#readme
+    about: Installation, usage, build instructions, and project links.
+  - name: Slicer releases
+    url: https://github.com/Infiltrator-Projects/Slicer/releases
+    about: Qualified Infiltrator Linux DEB and Windows EXE downloads.
+  - name: Infiltrator APT repository
+    url: https://github.com/Infiltrator-Projects/Infiltrator-Repository
+    about: Package repository configuration and APT installation instructions.

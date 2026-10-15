@@ -1,0 +1,412 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build and qualify
+        type: choice
+        options: [all, linux, windows]
+        default: all
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    name: Verify release contract
+    runs-on: [self-hosted, Linux, X64, linux-native]
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Clean source while retaining Linux compiler state
+        run: git clean -ffdx -e /build/
+
+      - name: Validate version and repository-owned build machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version=$(tr -d '[:space:]' < support/VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          cmake_version=$(sed -n 's/^set(SLIC3R_VERSION "\([^"]*\)").*/\1/p' version.inc)
+          test "$cmake_version" = "$version"
+          cmake -P support/verify-product.cmake
+
+          bash -n support/build-native.sh
+          bash -n support/linux/build-deb.sh
+          python3 support/linux/verify-staging.py
+          python3 support/verify-vendor.py
+
+          if grep -REn --include='*.yml' --include='*.yaml' \
+            'uses:[[:space:]]+Prusa-Development/PrusaSlicer-Actions' \
+            .github/workflows; then
+            echo "Release/build workflows must be owned by this repository." >&2
+            exit 1
+          fi
+
+          if grep -REn --include='*.yml' --include='*.yaml' \
+            -e 'git[[:space:]]+push[^#]*--force' \
+            -e 'git[[:space:]]+push[^#]*--delete' \
+            -e 'git[[:space:]]+push[^#]*:refs/tags/' \
+            -e 'gh[[:space:]]+release[[:space:]]+delete([[:space:]-]|$)' \
+            -e 'gh[[:space:]]+api[^#]*(--method|-X)[[:space:]]+DELETE' \
+            .github/workflows; then
+            echo "Destructive repository automation is forbidden." >&2
+            exit 1
+          fi
+
+          if git rev-parse -q --verify "refs/tags/v${version}" >/dev/null; then
+            tag_commit=$(git rev-list -n 1 "v${version}")
+            head_commit=$(git rev-parse HEAD)
+            if [[ "$tag_commit" != "$head_commit" ]] &&
+               ! git diff --quiet "$tag_commit" HEAD -- . ':!.github/workflows'; then
+              printf 'Version %s is already published at %s; advance support/VERSION before changing product or build source.\n' \
+                "$version" "$tag_commit" >&2
+              exit 1
+            fi
+          fi
+
+  linux-release:
+    name: Build and qualify Linux .deb
+    needs: source
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'windows'
+    runs-on: [self-hosted, Linux, X64, linux-native, bigbedroom]
+    timeout-minutes: 120
+    steps:
+      - name: Check out exact verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          clean: false
+
+      - name: Clean source while retaining Linux compiler state
+        run: git clean -ffdx -e /build/
+
+      - name: Prepare self-hosted Linux build prerequisites
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          printf 'Runner: %s (%s/%s)\n' "$RUNNER_NAME" "$RUNNER_OS" "$RUNNER_ARCH"
+          packages=(autoconf build-essential cmake dpkg-dev git python3 perl pkg-config
+            libdbus-1-dev libglu1-mesa-dev libgtk-3-dev
+            libhidapi-dev libwebkit2gtk-4.1-dev texinfo xauth xvfb)
+          missing=()
+          for package in "${packages[@]}"; do
+            if [[ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null || true)" != 'install ok installed' ]]; then
+              missing+=("$package")
+            fi
+          done
+          if ((${#missing[@]})); then
+            printf 'Missing build packages: %s\n' "${missing[*]}"
+            if ! sudo -n true 2>/dev/null; then
+              printf 'One-time setup required on this Linux host: sudo apt-get install -y --no-install-recommends'
+              printf ' %q' "${missing[@]}"
+              printf '\nRun that command in an administrator terminal on this host, then rerun Verify.\n' >&2
+              exit 1
+            fi
+            sudo -n apt-get update
+            sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "${missing[@]}"
+          fi
+
+      - name: Build release package once
+        env:
+          REUSE_WORKSPACE: ${{ vars.SLICER_LINUX_REUSE_WORKSPACE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          build_source="$GITHUB_WORKSPACE"
+          if [[ -n "$REUSE_WORKSPACE" ]]; then
+            test -d "$REUSE_WORKSPACE/.git"
+            origin=$(git -C "$REUSE_WORKSPACE" remote get-url origin)
+            [[ "${origin%.git}" == "https://github.com/$GITHUB_REPOSITORY" ]]
+            cache="$REUSE_WORKSPACE/build/release-linux/app/CMakeCache.txt"
+            test -f "$cache"
+            grep -Fx "CMAKE_HOME_DIRECTORY:INTERNAL=$REUSE_WORKSPACE" "$cache"
+            git -C "$REUSE_WORKSPACE" fetch --no-tags origin "$GITHUB_SHA"
+            git -C "$REUSE_WORKSPACE" checkout --force --detach "$GITHUB_SHA"
+            git -C "$REUSE_WORKSPACE" clean -ffdx -e /build/
+            build_source="$REUSE_WORKSPACE"
+          fi
+          (
+            cd "$build_source"
+            support/linux/build-deb.sh --jobs "$(nproc)"
+          )
+          if [[ "$build_source" != "$GITHUB_WORKSPACE" ]]; then
+            version=$(tr -d '[:space:]' < support/VERSION)
+            mkdir -p dist
+            cp "$build_source/dist/infiltrator-slicer_${version}_amd64.deb" dist/
+          fi
+
+      - name: Qualify exact Debian package
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < support/VERSION)
+          deb="dist/infiltrator-slicer_${version}_amd64.deb"
+          test -f "$deb"
+          test "$(dpkg-deb -f "$deb" Package)" = "infiltrator-slicer"
+          test "$(dpkg-deb -f "$deb" Version)" = "$version"
+          test "$(dpkg-deb -f "$deb" Architecture)" = "amd64"
+          dpkg-deb --contents "$deb" | grep -F './usr/bin/slicer' >/dev/null
+          # Exercise the exact packaged executable without replacing an app
+          # installed on this persistent runner.
+          smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-deb-smoke.XXXXXX")
+          trap 'rm -rf -- "$smoke_root"' EXIT
+          dpkg-deb --extract "$deb" "$smoke_root"
+          help_output=$(xvfb-run -a "$smoke_root/usr/bin/slicer" --help)
+          version_pattern="^Slicer-${version//./\\.}([^0-9.]|$)"
+          printf '%s\n' "$help_output" | grep -E "$version_pattern"
+
+      - name: Upload exact Linux release candidate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: slicer-linux-release
+          path: |
+            dist/infiltrator-slicer_*.deb
+            support/VERSION
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-release:
+    name: Build and qualify Windows .exe
+    needs: source
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'linux'
+    # Use the hosted VS2022 toolchain for the Windows x64 release.
+    runs-on: windows-2022
+    timeout-minutes: 240
+    steps:
+      - name: Check out exact verified source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Validate optional qualified Windows candidate reuse
+        id: windows-reuse
+        if: vars.SLICER_REUSE_WINDOWS_RUN != ''
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          QUALIFIED_RUN: ${{ vars.SLICER_REUSE_WINDOWS_RUN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:QUALIFIED_RUN -notmatch '^[0-9]+$') { throw 'Invalid qualified Windows run ID.' }
+          function Read-GitHubJson([string]$Path) {
+              $Json = & gh api $Path
+              if ($LASTEXITCODE -ne 0) { throw "GitHub qualification query failed: $Path" }
+              return ($Json | ConvertFrom-Json)
+          }
+          $Repo = $env:GITHUB_REPOSITORY
+          $Run = Read-GitHubJson "repos/$Repo/actions/runs/$env:QUALIFIED_RUN"
+          if ($Run.event -ne 'push' -or $Run.head_branch -ne 'main' -or
+              $Run.head_repository.full_name -ne $Repo -or $Run.path -ne '.github/workflows/ci.yml' -or
+              $Run.status -ne 'completed') { throw 'Windows candidate must come from a completed main Verify run.' }
+          $Jobs = Read-GitHubJson "repos/$Repo/actions/runs/$env:QUALIFIED_RUN/jobs?filter=latest&per_page=100"
+          foreach ($Name in @('Verify release contract', 'Build and qualify Windows .exe')) {
+              $QualifiedJobs = @($Jobs.jobs | Where-Object { $_.name -eq $Name })
+              if ($QualifiedJobs.Count -ne 1 -or $QualifiedJobs[0].conclusion -ne 'success') {
+                  throw "Original Windows qualification is incomplete: $Name"
+              }
+          }
+          function Assert-WindowsSourcesUnchanged($Comparison) {
+              if ($Comparison.status -notin @('ahead', 'identical') -or $Comparison.files.Count -ge 300) {
+                  throw 'Cannot establish complete ancestor/source equivalence for Windows.'
+              }
+              foreach ($File in $Comparison.files) {
+                  foreach ($Path in @($File.filename, $File.previous_filename)) {
+                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/)') {
+                          throw "Windows product/build source changed: $Path"
+                      }
+                  }
+              }
+          }
+          # Exercise the same predicate before it authorizes artifact reuse.
+          Assert-WindowsSourcesUnchanged ([pscustomobject]@{ status='ahead'; files=@(
+              [pscustomobject]@{ filename='support/linux/build-deb.sh' },
+              [pscustomobject]@{ filename='.github/workflows/ci.yml' }) })
+          foreach ($Unsafe in @(
+              [pscustomobject]@{ status='behind'; files=@() },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='version.inc' }) },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/windows/build-release.ps1' }) },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/linux/moved.cpp'; previous_filename='src/PrusaSlicer.cpp' }) },
+              [pscustomobject]@{ status='ahead'; files=@(1..300 | ForEach-Object { [pscustomobject]@{ filename='support/linux/fixture' } }) }
+          )) {
+              $Rejected = $false
+              try { Assert-WindowsSourcesUnchanged $Unsafe } catch { $Rejected = $true }
+              if (-not $Rejected) { throw 'Unsafe Windows source comparison was accepted.' }
+          }
+          $Comparison = Read-GitHubJson "repos/$Repo/compare/$($Run.head_sha)...$env:GITHUB_SHA"
+          Assert-WindowsSourcesUnchanged $Comparison
+          Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging/workflow files changed."
+          "reused=true" >> $env:GITHUB_OUTPUT
+
+      - name: Download qualified Windows candidate for Linux-only recovery
+        if: steps.windows-reuse.outputs.reused == 'true'
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ vars.SLICER_REUSE_WINDOWS_RUN }}
+          name: slicer-windows-release
+          path: dist
+
+      - name: Check Windows runner and x64 toolchain
+        if: steps.windows-reuse.outputs.reused != 'true'
+        id: windows-toolchain
+        shell: pwsh
+        run: |
+          & ./support/windows/check-runner.ps1
+          if ([string]::IsNullOrWhiteSpace($env:ImageVersion)) {
+              throw 'The hosted Windows image version is required for the dependency cache key.'
+          }
+          "image-version=$env:ImageVersion" >> $env:GITHUB_OUTPUT
+
+      - name: Ensure Inno Setup 6 is available
+        if: steps.windows-reuse.outputs.reused != 'true'
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and
+              -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+              choco install innosetup -y --no-progress
+          }
+
+      - name: Validate installer source before the long build
+        if: steps.windows-reuse.outputs.reused != 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Fixture = Join-Path $env:RUNNER_TEMP ('slicer-installer-syntax-' + [guid]::NewGuid().ToString('N'))
+          try {
+              $Payload = Join-Path $Fixture 'build\src\Release'
+              $Resources = Join-Path $Fixture 'resources'
+              $Output = Join-Path $Fixture 'output'
+              New-Item -ItemType Directory -Force -Path $Payload, $Resources, $Output | Out-Null
+              Set-Content (Join-Path $Payload 'slicer.exe') 'Installer syntax fixture'
+              Set-Content (Join-Path $Resources 'fixture.txt') 'Installer syntax fixture'
+              $Iscc = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+              $Compiler = if ($Iscc) { $Iscc.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+              $Version = (Get-Content support/VERSION -Raw).Trim()
+              & $Compiler "/DRepoRoot=$Fixture" "/DAppVersion=$Version" "/DOutputDir=$Output" ./support/windows/installer.iss
+              if ($LASTEXITCODE -ne 0) { throw 'Installer source failed compilation.' }
+          } finally {
+              if (Test-Path $Fixture) { Remove-Item $Fixture -Recurse -Force }
+          }
+
+      - name: Restore matching Windows dependencies
+        if: steps.windows-reuse.outputs.reused != 'true'
+        id: windows-deps-cache
+        continue-on-error: true
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: deps/build/release-windows-deps
+          key: windows-2022-x64-release-v1-${{ steps.windows-toolchain.outputs.image-version }}-${{ hashFiles('deps/**', 'cmake/**', 'build_win.bat') }}
+
+      - name: Build Windows dependencies on cache miss
+        id: windows-deps-build
+        if: steps.windows-reuse.outputs.reused != 'true' && steps.windows-deps-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: '& ./support/windows/build-release.ps1 -DependenciesOnly'
+
+      - name: Save completed Windows dependencies
+        if: ${{ success() && steps.windows-deps-build.outcome == 'success' && steps.windows-deps-cache.outputs.cache-primary-key != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: deps/build/release-windows-deps
+          key: ${{ steps.windows-deps-cache.outputs.cache-primary-key }}
+
+      - name: Build Windows release installer once
+        if: steps.windows-reuse.outputs.reused != 'true'
+        shell: pwsh
+        run: '& ./support/windows/build-release.ps1 -UseCachedDependencies'
+
+      - name: Qualify exact Windows executable
+        shell: pwsh
+        run: |
+          $Version = (Get-Content support/VERSION -Raw).Trim()
+          $Artifact = "dist\slicer-$Version-windows.exe"
+          if (-not (Test-Path $Artifact -PathType Leaf)) {
+              throw "Missing Windows release artifact: $Artifact"
+          }
+          & ./support/windows/qualify-installer.ps1 -Artifact $Artifact -ExpectedVersion $Version
+
+      - name: Upload exact Windows release candidate
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: slicer-windows-release
+          path: dist/slicer-*-windows.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  release-assets:
+    name: Seal exact qualified release assets
+    needs: [linux-release, windows-release]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Clean prior bundle outputs
+        run: rm -rf -- candidate-linux candidate-windows release
+
+      - name: Download exact Linux candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: slicer-linux-release
+          path: candidate-linux
+
+      - name: Download exact Windows candidate
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: slicer-windows-release
+          path: candidate-windows
+
+      - name: Seal release bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version=$(tr -d '[:space:]' < candidate-linux/support/VERSION)
+          expected_deb="infiltrator-slicer_${version}_amd64.deb"
+          expected_windows="slicer-${version}-windows.exe"
+
+          mapfile -t debs < <(find candidate-linux/dist -maxdepth 1 -type f -name '*.deb' -printf '%f\n' | sort)
+          mapfile -t windows_apps < <(find candidate-windows -maxdepth 1 -type f -name '*.exe' -printf '%f\n' | sort)
+          test "${#debs[@]}" -eq 1
+          test "${#windows_apps[@]}" -eq 1
+          test "${debs[0]}" = "$expected_deb"
+          test "${windows_apps[0]}" = "$expected_windows"
+
+          mkdir release
+          cp "candidate-linux/dist/$expected_deb" "release/$expected_deb"
+          cp "candidate-windows/$expected_windows" "release/$expected_windows"
+
+          test "$(dpkg-deb -f "release/$expected_deb" Package)" = "infiltrator-slicer"
+          test "$(dpkg-deb -f "release/$expected_deb" Version)" = "$version"
+          test "$(head -c 2 "release/$expected_windows")" = "MZ"
+
+          (
+            cd release
+            sha256sum "$expected_deb" "$expected_windows" > RELEASE_SHA256SUMS.txt
+            printf '%s\n' "$GITHUB_SHA" > RELEASE_SOURCE_SHA
+            printf '%s\n' "$version" > RELEASE_VERSION
+          )
+
+      - name: Upload sealed release bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: slicer-release-assets
+          path: release/
+          if-no-files-found: error
+          retention-days: 14
