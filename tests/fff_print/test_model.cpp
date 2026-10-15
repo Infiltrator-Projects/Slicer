@@ -2,6 +2,7 @@
 
 #include "libslic3r/libslic3r.h"
 #include "libslic3r/Model.hpp"
+#include "libslic3r/Format/3mf.hpp"
 #include "libslic3r/Utils.hpp"
 #include <arrange-wrapper/ModelArrange.hpp>
 
