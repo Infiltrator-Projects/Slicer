@@ -21,10 +21,15 @@ Use recovery only while the original workspace is idle and no other Verify run i
   outside `build/`, reruns the release driver and qualifies the produced DEB.
 - `SLICER_REUSE_WINDOWS_RUN`: the original completed main-branch Verify run.
   CI requires successful source and Windows jobs, a complete ancestor comparison,
-  and changes restricted to `support/linux/` and workflow files, including rename
+  and changes restricted to `support/linux/`, workflow files and the standalone
+  cancellation regression test `tests/slic3rutils/slic3r_jobs_tests.cpp`, including rename
   origins. It downloads the original Windows candidate, installs and qualifies
   those exact bytes again, and uploads them into the current qualification run.
   Any Windows product, resource, dependency or build-helper change rejects reuse.
+  A recovery run can wait for an existing Windows qualification to finish;
+  its concurrency group keeps that original build running. The cancellation
+  test is compiled separately from the packaged Windows application and cannot
+  change the installer payload.
 
 Clear both variables after recovery. Normal runs build Windows using its pinned
 hosted toolchain and dependency cache. Release publication continues to require

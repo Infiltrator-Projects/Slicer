@@ -17,7 +17,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
+  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}-${{ vars.SLICER_REUSE_WINDOWS_RUN || 'normal' }}
   cancel-in-progress: true
 
 jobs:
@@ -322,6 +322,13 @@ jobs:
           }
           $Repo = $env:GITHUB_REPOSITORY
           $Run = Read-GitHubJson "repos/$Repo/actions/runs/$env:QUALIFIED_RUN"
+          $Deadline = [DateTime]::UtcNow.AddHours(2)
+          while ($Run.status -ne 'completed') {
+              if ([DateTime]::UtcNow -gt $Deadline) { throw 'Timed out waiting for the original Windows qualification.' }
+              Write-Host 'Waiting for the original Windows build to qualify; its binaries will be reused without another compilation.'
+              Start-Sleep -Seconds 30
+              $Run = Read-GitHubJson "repos/$Repo/actions/runs/$env:QUALIFIED_RUN"
+          }
           if ($Run.event -ne 'push' -or $Run.head_branch -ne 'main' -or
               $Run.head_repository.full_name -ne $Repo -or $Run.path -ne '.github/workflows/ci.yml' -or
               $Run.status -ne 'completed') { throw 'Windows candidate must come from a completed main Verify run.' }
@@ -338,7 +345,7 @@ jobs:
               }
               foreach ($File in $Comparison.files) {
                   foreach ($Path in @($File.filename, $File.previous_filename)) {
-                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/)') {
+                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/|tests/slic3rutils/slic3r_jobs_tests\.cpp$)') {
                           throw "Windows product/build source changed: $Path"
                       }
                   }
@@ -347,6 +354,7 @@ jobs:
           # Exercise the same predicate before it authorizes artifact reuse.
           Assert-WindowsSourcesUnchanged ([pscustomobject]@{ status='ahead'; files=@(
               [pscustomobject]@{ filename='support/linux/build-deb.sh' },
+              [pscustomobject]@{ filename='tests/slic3rutils/slic3r_jobs_tests.cpp' },
               [pscustomobject]@{ filename='.github/workflows/ci.yml' }) })
           foreach ($Unsafe in @(
               [pscustomobject]@{ status='behind'; files=@() },
@@ -361,7 +369,7 @@ jobs:
           }
           $Comparison = Read-GitHubJson "repos/$Repo/compare/$($Run.head_sha)...$env:GITHUB_SHA"
           Assert-WindowsSourcesUnchanged $Comparison
-          Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging/workflow files changed."
+          Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging, the cancellation test, and workflow files changed."
           "reused=true" >> $env:GITHUB_OUTPUT
 
       - name: Download qualified Windows candidate for Linux-only recovery

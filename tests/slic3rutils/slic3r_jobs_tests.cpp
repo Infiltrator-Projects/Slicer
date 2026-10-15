@@ -93,7 +93,11 @@ TEMPLATE_LIST_TEST_CASE("Cancellation should be recognized be the worker", "[Job
 
     queue_job(
         worker,
-        [](Job::Ctl &ctl) {
+        [&worker](Job::Ctl &ctl) {
+            // Cancel on the owning thread only after this job has started.
+            // A timed sleep in the caller can cancel before BoostThreadWorker
+            // resets its cancellation state for the newly dequeued job.
+            ctl.call_on_main_thread([&worker] { worker.cancel(); }).wait();
             for (int s = 0; s <= 100; ++s) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 ctl.update_status(s, "Running");
@@ -104,9 +108,6 @@ TEMPLATE_LIST_TEST_CASE("Cancellation should be recognized be the worker", "[Job
         [](bool cancelled, std::exception_ptr &) { // finalize
             REQUIRE(cancelled == true);
         });
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    worker.cancel();
 
     worker.wait_for_current_job();
 
