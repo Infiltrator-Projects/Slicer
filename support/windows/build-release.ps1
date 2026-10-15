@@ -15,6 +15,13 @@ function Fail([string]$Message) {
     throw $Message
 }
 
+function Resolve-BuildPath([string]$Path) {
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $Path))
+}
+
 $Version = (Get-Content (Join-Path $RepoRoot "support\VERSION") -Raw).Trim()
 if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     Fail "support/VERSION is not a numeric semantic version."
@@ -29,7 +36,7 @@ if ($Match.Groups[1].Value -ne $Version) {
     Fail "support/VERSION ($Version) does not match version.inc ($($Match.Groups[1].Value))."
 }
 
-$DependencyPath = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $DependencyDirectory))
+$DependencyPath = Resolve-BuildPath $DependencyDirectory
 Write-Host "Building Slicer $Version Windows release..."
 & (Join-Path $RepoRoot "build_win.bat") `
     -c Release `
@@ -56,28 +63,32 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "Built executable reports: $VersionOutput"
 
-$Iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-if ($null -eq $Iscc) {
+$IsccPath = $null
+$IsccCommand = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+if ($null -ne $IsccCommand) {
+    $IsccPath = $IsccCommand.Source
+}
+if ([string]::IsNullOrWhiteSpace($IsccPath)) {
     $Candidates = @(
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
     )
     foreach ($Candidate in $Candidates) {
         if (Test-Path $Candidate -PathType Leaf) {
-            $Iscc = Get-Item $Candidate
+            $IsccPath = (Resolve-Path $Candidate).Path
             break
         }
     }
 }
-if ($null -eq $Iscc) {
+if ([string]::IsNullOrWhiteSpace($IsccPath)) {
     Fail "Inno Setup 6 (ISCC.exe) is required to create the Windows release .exe."
 }
 
-$Dist = [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $OutputDirectory))
+$Dist = Resolve-BuildPath $OutputDirectory
 New-Item -ItemType Directory -Force -Path $Dist | Out-Null
 $InstallerScript = Join-Path $RepoRoot "support\windows\installer.iss"
 
-& $Iscc.Source `
+& $IsccPath `
     "/DRepoRoot=$RepoRoot" `
     "/DAppVersion=$Version" `
     "/DOutputDir=$Dist" `

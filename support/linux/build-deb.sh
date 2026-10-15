@@ -64,7 +64,7 @@ done
 [[ -f CMakeLists.txt && -f version.inc && -f support/VERSION ]] ||
     fail "run this script from the Slicer repository root"
 
-for tool in cmake dpkg-deb dpkg-shlibdeps sed grep; do
+for tool in awk cmake dpkg dpkg-deb dpkg-shlibdeps du sed; do
     command -v "$tool" >/dev/null 2>&1 || fail "$tool is required"
 done
 
@@ -87,17 +87,25 @@ if [[ -z "$jobs" ]]; then
 fi
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || fail "--jobs must be a positive integer"
 
+repo_root=$(pwd -P)
+case "$build_root" in
+    /*) build_base=$build_root ;;
+    *)  build_base="$repo_root/$build_root" ;;
+esac
+case "$output_dir" in
+    /*) output=$output_dir ;;
+    *)  output="$repo_root/$output_dir" ;;
+esac
+
 if ((clean)); then
-    rm -rf -- "$build_root"
+    rm -rf -- "$build_base"
 fi
 
-repo_root=$(pwd -P)
-deps_build="$repo_root/$build_root/deps"
+deps_build="$build_base/deps"
 deps_prefix="$deps_build/destdir/usr/local"
-app_build="$repo_root/$build_root/app"
-stage="$repo_root/$build_root/stage"
-metadata="$repo_root/$build_root/package-meta"
-output="$repo_root/$output_dir"
+app_build="$build_base/app"
+stage="$build_base/stage"
+metadata="$build_base/package-meta"
 artifact="$output/infiltrator-slicer_${version}_amd64.deb"
 
 rm -rf "$stage" "$metadata"
@@ -108,6 +116,9 @@ cmake -S deps -B "$deps_build" \
     -DDEP_WX_GTK3=ON \
     -DDESTDIR="$deps_build/destdir" \
     -DCMAKE_BUILD_TYPE=Release
+# The upstream dependency graph contains nested build systems that perform
+# their own parallelism. Serialising this outer graph avoids races between
+# dependency install steps while retaining internal compiler parallelism.
 cmake --build "$deps_build" --parallel 1
 
 cmake -S . -B "$app_build" \

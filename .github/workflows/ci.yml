@@ -103,8 +103,8 @@ jobs:
           test "$(dpkg-deb -f "$deb" Package)" = "infiltrator-slicer"
           test "$(dpkg-deb -f "$deb" Version)" = "$version"
           test "$(dpkg-deb -f "$deb" Architecture)" = "amd64"
-          dpkg-deb --contents "$deb" | grep -Fq './usr/bin/prusa-slicer'
-          sudo dpkg -i "$deb"
+          dpkg-deb --contents "$deb" | grep -F './usr/bin/prusa-slicer' >/dev/null
+          sudo apt-get install -y "./$deb"
           xvfb-run -a /usr/bin/prusa-slicer --version
           sudo dpkg -r infiltrator-slicer
 
