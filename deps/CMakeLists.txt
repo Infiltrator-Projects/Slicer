@@ -3,7 +3,7 @@
 #/|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 #/|/
 #
-# This CMake project downloads, configures and builds PrusaSlicer dependencies on Unix and Windows.
+# This CMake project configures and builds vendored PrusaSlicer dependencies on Unix and Windows.
 #
 # When using this script, it's recommended to perform an out-of-source build using CMake.
 #
@@ -23,7 +23,9 @@
 # WARNING: On UNIX platforms wxWidgets hardcode the destdir path into its `wx-conffig` utility,
 # therefore, unfortunatelly, the installation cannot be copied/moved elsewhere without re-installing wxWidgets.
 #
-cmake_minimum_required(VERSION 3.12)
+# CMake 3.18.5 fixed binary-safe `cmake -E cat` on Windows, which is used
+# to reconstruct large vendored archives without additional build tools.
+cmake_minimum_required(VERSION 3.18.5)
 project(PrusaSlicer_deps)
 
 # Redefine BUILD_SHARED_LIBS with default being OFF

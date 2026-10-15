@@ -1,5 +1,6 @@
 include(ExternalProject)
 include(ProcessorCount)
+include("${CMAKE_CURRENT_LIST_DIR}/VendoredSources.cmake")
 
 set(${PROJECT_NAME}_DEP_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/destdir/usr/local" CACHE PATH "Destination directory")
 set(${PROJECT_NAME}_DEP_DOWNLOAD_DIR ${CMAKE_CURRENT_BINARY_DIR}/downloads CACHE PATH "Path for downloaded source packages.")
@@ -20,7 +21,18 @@ endif ()
 # The value of CMAKE_BUILD_TYPE will be used for building each dependency even if the 
 # generator is multi-config. Use this var to specify build type regardless of the generator. 
 function(add_cmake_project projectname)
-    cmake_parse_arguments(P_ARGS "" "INSTALL_DIR;BUILD_COMMAND;INSTALL_COMMAND" "CMAKE_ARGS" ${ARGN})
+    cmake_parse_arguments(P_ARGS "" "INSTALL_DIR;BUILD_COMMAND;INSTALL_COMMAND;URL_HASH" "CMAKE_ARGS;URL" ${ARGN})
+
+    set(_source_url_args "")
+    if (P_ARGS_URL)
+        slicer_vendor_archive("${projectname}" "${P_ARGS_URL_HASH}" _source_archive)
+        set(_source_url_args URL "${_source_archive}" URL_HASH "${P_ARGS_URL_HASH}")
+    else ()
+        list(FIND P_ARGS_UNPARSED_ARGUMENTS SOURCE_DIR _source_dir_index)
+        if (_source_dir_index EQUAL -1)
+            message(FATAL_ERROR "${projectname}: dependency must use a vendored archive or an explicit local SOURCE_DIR.")
+        endif ()
+    endif ()
 
     set(_pcount ${DEP_${projectname}_MAX_THREADS})
 
@@ -61,6 +73,7 @@ function(add_cmake_project projectname)
         INSTALL_DIR         ${${PROJECT_NAME}_DEP_INSTALL_PREFIX}
         DOWNLOAD_DIR        ${${PROJECT_NAME}_DEP_DOWNLOAD_DIR}/${projectname}
         BINARY_DIR          ${CMAKE_CURRENT_BINARY_DIR}/builds/${projectname}
+        ${_source_url_args}
         CMAKE_ARGS
             -DCMAKE_INSTALL_PREFIX:STRING=${${PROJECT_NAME}_DEP_INSTALL_PREFIX}
             -DCMAKE_MODULE_PATH:STRING=${CMAKE_MODULE_PATH}

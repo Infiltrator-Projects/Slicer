@@ -36,6 +36,7 @@ jobs:
 
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
+          python3 support/verify-vendor.py
 
           if grep -REn --include='*.yml' --include='*.yaml' \
             'uses:[[:space:]]+Prusa-Development/PrusaSlicer-Actions' \

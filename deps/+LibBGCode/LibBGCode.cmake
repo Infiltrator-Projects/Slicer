@@ -24,6 +24,7 @@ endif ()
 add_cmake_project(LibBGCode
     ${_source_dir_line}
     CMAKE_ARGS
+        -DLibBGCode_BUILD_DEPS:BOOL=OFF
         -DLibBGCode_BUILD_TESTS:BOOL=OFF
         -DLibBGCode_BUILD_CMD_TOOL:BOOL=OFF
 )

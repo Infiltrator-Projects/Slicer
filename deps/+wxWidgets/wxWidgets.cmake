@@ -15,7 +15,26 @@ if (UNIX AND NOT APPLE) # wxWidgets will not use char as the underlying type for
 endif()
 
 if (MSVC)
-    set(_wx_webview "-DwxUSE_WEBVIEW_EDGE=ON")
+    # wxWidgets otherwise fetches the WebView2 SDK from NuGet while configuring.
+    # An existing local package suppresses that nested network request.
+    slicer_vendor_archive(WebView2
+        SHA256=6a34bb553e18cfac7297b4031f3eac2558e439f8d16a45945c22945ac404105d
+        _webview2_archive)
+    set(_webview2_directory "${CMAKE_CURRENT_BINARY_DIR}/vendor-archives/WebView2-sdk")
+    file(MAKE_DIRECTORY "${_webview2_directory}")
+    execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E tar xf "${_webview2_archive}"
+        WORKING_DIRECTORY "${_webview2_directory}"
+        RESULT_VARIABLE _webview2_extract_result
+        ERROR_VARIABLE _webview2_extract_error
+    )
+    if (NOT _webview2_extract_result EQUAL 0 OR
+        NOT EXISTS "${_webview2_directory}/build/native/include/WebView2.h")
+        message(FATAL_ERROR "Vendored WebView2 SDK could not be extracted: ${_webview2_extract_error}")
+    endif ()
+    set(_wx_webview
+        "-DwxUSE_WEBVIEW_EDGE=ON"
+        "-DWEBVIEW2_PACKAGE_DIR:PATH=${_webview2_directory}")
 
 else ()
     set(_wx_webview "-DwxUSE_WEBVIEW=ON")
