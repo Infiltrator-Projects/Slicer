@@ -54,10 +54,6 @@ if ($UseCachedDependencies) {
     if (-not (Test-Path -LiteralPath $DependencyStamp -PathType Leaf)) {
         Fail "Cached dependencies are incomplete: $DependencyPath"
     }
-    # The batch driver requires this workspace-local path record even when
-    # the installed dependency prefix came from the CI cache.
-    Set-Content -LiteralPath (Join-Path $RepoRoot 'deps\build\.DEPS_PATH.txt') `
-        -Value $DependencyPath -Encoding ascii
     Write-Host 'Reusing the exact cached Windows x64 Release dependencies.'
 }
 else {
@@ -81,16 +77,22 @@ if ($DependenciesOnly) {
     return
 }
 
-& (Join-Path $RepoRoot "build_win.bat") `
-    -a x64 `
-    -v $Toolchain.Major `
-    -PRODUCT $Toolchain.Product `
-    -c Release `
-    -s app `
-    -r none `
-    -d $DependencyPath
+# Release dependencies contain no Debug libraries. The developer batch driver
+# exposes every configuration, which makes OpenVDB require its missing Debug lib.
+if (Test-Path -LiteralPath $AppBuildPath) {
+    Remove-Item -LiteralPath $AppBuildPath -Recurse -Force
+}
+& cmake.exe -S $RepoRoot -B $AppBuildPath `
+    -G $Toolchain.Generator -A x64 `
+    "-DCMAKE_GENERATOR_INSTANCE=$($Toolchain.InstallationPath)" `
+    "-DCMAKE_PREFIX_PATH=$(Join-Path $DependencyPath 'usr\local')" `
+    -DCMAKE_CONFIGURATION_TYPES=Release
 if ($LASTEXITCODE -ne 0) {
-    Fail "build_win.bat failed with exit code $LASTEXITCODE."
+    Fail "Windows Release application configuration failed with exit code $LASTEXITCODE."
+}
+& cmake.exe --build $AppBuildPath --config Release --parallel ([Environment]::ProcessorCount)
+if ($LASTEXITCODE -ne 0) {
+    Fail "Windows Release application build failed with exit code $LASTEXITCODE."
 }
 
 $BuildOutput = Join-Path $RepoRoot "build\src\Release"
