@@ -134,7 +134,9 @@ jobs:
           smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-deb-smoke.XXXXXX")
           trap 'rm -rf -- "$smoke_root"' EXIT
           dpkg-deb --extract "$deb" "$smoke_root"
-          xvfb-run -a "$smoke_root/usr/bin/prusa-slicer" --version
+          help_output=$(xvfb-run -a "$smoke_root/usr/bin/prusa-slicer" --help)
+          version_pattern="^PrusaSlicer-${version//./\\.}([^0-9.]|$)"
+          printf '%s\n' "$help_output" | grep -E "$version_pattern"
 
       - name: Upload exact Linux release candidate
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

@@ -72,15 +72,16 @@ try {
     if (-not (Test-Path -LiteralPath $ConsoleExecutable -PathType Leaf)) {
         throw "Installer did not extract the Slicer console executable."
     }
-    $VersionOutput = (& $ConsoleExecutable --version 2>&1 | Out-String).Trim()
+    $HelpOutput = (& $ConsoleExecutable --help 2>&1 | Out-String).Trim()
     if ($LASTEXITCODE -ne 0) {
-        throw "Installed Slicer console executable failed its --version smoke test."
+        throw "Installed Slicer console executable failed its --help smoke test."
     }
-    $VersionPattern = '(?<!\d)' + [regex]::Escape($ExpectedVersion) + '(?![\d.])'
-    if ($VersionOutput -notmatch $VersionPattern) {
-        throw "Installed Slicer reports an unexpected version: $VersionOutput"
+    $VersionPattern = '(?m)^PrusaSlicer-' + [regex]::Escape($ExpectedVersion) + '(?![\d.])[^\r\n]*'
+    $VersionMatch = [regex]::Match($HelpOutput, $VersionPattern)
+    if (-not $VersionMatch.Success) {
+        throw "Installed Slicer reports an unexpected version: $HelpOutput"
     }
-    Write-Host "Qualified exact Windows installer in isolated CI mode: $VersionOutput"
+    Write-Host "Qualified exact Windows installer in isolated CI mode: $($VersionMatch.Value)"
 }
 catch {
     if (Test-Path -LiteralPath $Log -PathType Leaf) {

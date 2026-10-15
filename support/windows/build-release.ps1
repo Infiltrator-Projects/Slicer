@@ -69,11 +69,16 @@ if (-not (Test-Path $ConsoleExecutable -PathType Leaf)) {
     Fail "Windows console executable was not produced: $ConsoleExecutable"
 }
 
-$VersionOutput = (& $ConsoleExecutable --version 2>&1 | Out-String).Trim()
+$HelpOutput = (& $ConsoleExecutable --help 2>&1 | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) {
-    Fail "Built console executable failed its --version smoke test."
+    Fail "Built console executable failed its --help smoke test."
 }
-Write-Host "Built executable reports: $VersionOutput"
+$VersionPattern = '(?m)^PrusaSlicer-' + [regex]::Escape($Version) + '(?![\d.])[^\r\n]*'
+$VersionMatch = [regex]::Match($HelpOutput, $VersionPattern)
+if (-not $VersionMatch.Success) {
+    Fail "Built Slicer reports an unexpected version: $HelpOutput"
+}
+Write-Host "Built executable reports: $($VersionMatch.Value)"
 
 $IsccPath = $null
 $IsccCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
