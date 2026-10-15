@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [string]$OutputDirectory = "dist",
-    [string]$DependencyDirectory = "build\release-windows-deps"
+    [string]$DependencyDirectory = "deps\build\release-windows-deps"
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,6 +37,14 @@ if ($Match.Groups[1].Value -ne $Version) {
 }
 
 $DependencyPath = Resolve-BuildPath $DependencyDirectory
+$AppBuildPath = Resolve-BuildPath "build"
+# build_win.bat cleans the app build directory after building dependencies.
+# Keep the dependency prefix outside that directory so it survives the cleanup.
+if ($DependencyPath.Equals($AppBuildPath, [StringComparison]::OrdinalIgnoreCase) -or
+    $DependencyPath.StartsWith($AppBuildPath + [System.IO.Path]::DirectorySeparatorChar,
+        [StringComparison]::OrdinalIgnoreCase)) {
+    Fail "DependencyDirectory must be outside the app build directory: $AppBuildPath"
+}
 $Toolchain = & (Join-Path $PSScriptRoot "check-runner.ps1") -DiscoverOnly
 Write-Host "Building Slicer $Version Windows x64 release with $($Toolchain.Generator) $($Toolchain.Product)..."
 & (Join-Path $RepoRoot "build_win.bat") `
