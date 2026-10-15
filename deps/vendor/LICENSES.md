@@ -249,3 +249,9 @@ Original source: https://github.com/Z3Prover/z3/archive/refs/tags/z3-4.15.1.zip
 Original source: https://www.nuget.org/api/v2/package/Microsoft.Web.WebView2/1.0.705.50
 
 - `LICENSE.txt`
+
+## PythonWindowsARM64
+
+Original distribution: https://www.python.org/ftp/python/3.13.16/python-3.13.16-embed-arm64.zip
+
+- `LICENSE.txt`

@@ -5,12 +5,18 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Platform to build and qualify
+        type: choice
+        options: [all, linux, windows]
+        default: all
 
 permissions:
   contents: read
 
 concurrency:
-  group: verify-self-hosted-${{ github.repository }}-${{ github.ref_name }}
+  group: verify-self-hosted-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}
   cancel-in-progress: true
 
 jobs:
@@ -70,6 +76,7 @@ jobs:
   linux-release:
     name: Build and qualify Linux .deb
     needs: source
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'windows'
     runs-on: [self-hosted, Linux, X64, linux-native, bigbedroom]
     timeout-minutes: 120
     steps:
@@ -142,6 +149,7 @@ jobs:
   windows-release:
     name: Build and qualify Windows .exe
     needs: source
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'linux'
     # The user's Windows fleet is ARM64. Build the existing x64 product with
     # its Visual Studio cross compiler and verify executable launch first.
     runs-on: [self-hosted, Windows, ARM64]
@@ -153,14 +161,8 @@ jobs:
           fetch-depth: 1
 
       - name: Set up native Windows Python
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
-        env:
-          # setup-python invokes Windows PowerShell without a policy argument.
-          # Permit its local setup script for this process only.
-          PSExecutionPolicyPreference: RemoteSigned
-        with:
-          python-version: '3.13'
-          architecture: arm64
+        shell: pwsh
+        run: '& ./support/windows/prepare-python.ps1'
 
       - name: Check Windows runner and x64 toolchain
         shell: pwsh
@@ -216,6 +218,14 @@ jobs:
           path: dist/slicer-*-windows.exe
           if-no-files-found: error
           retention-days: 14
+
+      - name: Clean temporary Windows Python
+        if: always()
+        shell: pwsh
+        run: |
+          if ($env:SLICER_PYTHON_ROOT -and (Test-Path -LiteralPath $env:SLICER_PYTHON_ROOT)) {
+              Remove-Item -LiteralPath $env:SLICER_PYTHON_ROOT -Recurse -Force
+          }
 
   release-assets:
     name: Seal exact qualified release assets
