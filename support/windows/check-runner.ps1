@@ -90,7 +90,9 @@ function Write-ProbeLaunchDiagnostics(
     $ProbeToken = Split-Path -Path $Directory -Leaf
     foreach ($LogName in @(
         'Microsoft-Windows-CodeIntegrity/Operational',
-        'Microsoft-Windows-AppLocker/EXE and DLL'
+        'Microsoft-Windows-AppLocker/EXE and DLL',
+        'Microsoft-Windows-Windows Defender/Operational',
+        'Application'
     )) {
         try {
             $Events = @(Get-WinEvent -FilterHashtable @{
