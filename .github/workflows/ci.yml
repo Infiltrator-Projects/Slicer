@@ -9,7 +9,7 @@ on:
       platform:
         description: Platform to build and qualify
         type: choice
-        options: [all, linux, windows]
+        options: [all, linux, windows, windows-diagnostics]
         default: all
 
 permissions:
@@ -22,6 +22,7 @@ concurrency:
 jobs:
   source:
     name: Verify release contract
+    if: inputs.platform != 'windows-diagnostics'
     runs-on: [self-hosted, Linux, X64, linux-native]
     timeout-minutes: 10
     steps:
@@ -225,6 +226,42 @@ jobs:
         run: |
           if ($env:SLICER_PYTHON_ROOT -and (Test-Path -LiteralPath $env:SLICER_PYTHON_ROOT)) {
               Remove-Item -LiteralPath $env:SLICER_PYTHON_ROOT -Recurse -Force
+          }
+
+  windows-diagnostics:
+    name: Diagnose Windows executable launch
+    if: inputs.platform == 'windows-diagnostics'
+    runs-on: [self-hosted, Windows, ARM64]
+    timeout-minutes: 5
+    steps:
+      - name: Read security products and Slicer launch events
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Write-Host "Runner: $env:RUNNER_NAME"
+          try {
+              Get-CimInstance -Namespace root/SecurityCenter2 -ClassName AntivirusProduct |
+                  Select-Object displayName, productState | Format-Table -AutoSize
+          } catch { Write-Host "Security product inventory unavailable: $($_.Exception.Message)" }
+          try {
+              Get-MpComputerStatus | Select-Object AMRunningMode, AntivirusEnabled, RealTimeProtectionEnabled, SmartAppControlState | Format-List
+              Get-MpPreference | Select-Object AttackSurfaceReductionRules_Ids, AttackSurfaceReductionRules_Actions | Format-List
+          } catch { Write-Host "Defender status unavailable: $($_.Exception.Message)" }
+          foreach ($LogName in @('Microsoft-Windows-CodeIntegrity/Operational',
+              'Microsoft-Windows-AppLocker/EXE and DLL',
+              'Microsoft-Windows-Windows Defender/Operational', 'Application')) {
+              try {
+                  $Events = Get-WinEvent -FilterHashtable @{LogName=$LogName; StartTime=(Get-Date).AddMinutes(-30)} -MaxEvents 200
+                  $Matches = @($Events | Where-Object {
+                      ([string]$_.Message + $_.ToXml()).IndexOf('slicer-x64-probe-', [StringComparison]::OrdinalIgnoreCase) -ge 0
+                  } | Select-Object -First 5)
+                  Write-Host "Matching Slicer probe events in ${LogName}: $($Matches.Count)"
+                  foreach ($Event in $Matches) {
+                      Write-Host "Event $($Event.Id); $($Event.TimeCreated.ToString('o'))"
+                      Write-Host $Event.Message
+                      Write-Host ($Event.ToXml())
+                  }
+              } catch { Write-Host "Event lookup unavailable for ${LogName}: $($_.Exception.Message)" }
           }
 
   release-assets:
