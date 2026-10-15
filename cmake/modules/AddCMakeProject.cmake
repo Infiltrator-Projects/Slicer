@@ -60,6 +60,12 @@ function(add_cmake_project projectname)
     endif ()
 
     set(_verbose_switch "")
+    # VS2026 requires CMake 4, while some pinned upstream projects still
+    # declare policy versions older than the compatibility floor in CMake 4.
+    set(_legacy_policy_args "")
+    if (CMAKE_VERSION VERSION_GREATER_EQUAL 4.0)
+        set(_legacy_policy_args -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5)
+    endif ()
     if (${PROJECT_NAME}_DEP_BUILD_VERBOSE)
         if (CMAKE_GENERATOR MATCHES "Ninja")
             set(_verbose_switch "--verbose")
@@ -87,6 +93,7 @@ function(add_cmake_project projectname)
             -DBUILD_SHARED_LIBS:BOOL=${BUILD_SHARED_LIBS}
             "${_configs_line}"
             ${DEP_CMAKE_OPTS}
+            ${_legacy_policy_args}
             ${P_ARGS_CMAKE_ARGS}
        ${P_ARGS_UNPARSED_ARGUMENTS}
        BUILD_COMMAND ${CMAKE_COMMAND} --build . --config ${CMAKE_BUILD_TYPE} -- ${_build_j} ${_verbose_switch}
