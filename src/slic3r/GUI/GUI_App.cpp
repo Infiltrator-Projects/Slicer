@@ -301,10 +301,9 @@ private:
             // dynamically get the version to display
             version = _L("Version") + " " + std::string(SLIC3R_VERSION);
 
-            // credits infornation
-            credits = "\n" + title + " " +
-                _L("is based on Slic3r by Alessandro Ranellucci and the RepRap community.") + "\n\n" +
-                _L("Developed by Infiltrator Projects.\nBased on PrusaSlicer by Prusa Research.") + "\n\n" +
+            // Product identity; inherited copyright notices are in Portions copyright.
+            credits = "\n" +
+                _L("Developed by Infiltrator Projects.") + "\n\n" +
                 _L("Licensed under GNU AGPLv3.") + "\n\n\n\n\n\n\n";
 
             title_font = version_font = credits_font = init_font;

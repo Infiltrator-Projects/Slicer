@@ -4,20 +4,20 @@
 
 Slicer is Infiltrator Projects' desktop application for preparing 3D models for FFF and resin printers. It converts models into G-code or resin print layers and includes a G-code viewer, multiple material support, model repair, variable layer heights, supports, and a command-line interface.
 
-**Product version: 0.0.2.** Infiltrator's release numbering is independent of the PrusaSlicer 2.9.6 source baseline.
+**Product version: 0.0.3.** Infiltrator's release numbering is independent of the PrusaSlicer 2.9.6 source baseline.
 
 ## Install
 
 Download the qualified packages from [Infiltrator Slicer releases](https://github.com/Infiltrator-Projects/Slicer/releases):
 
-- **Linux amd64:** `infiltrator-slicer_0.0.2_amd64.deb` for Debian/Ubuntu systems with the package's runtime dependencies.
-- **Windows x64:** `slicer-0.0.2-windows.exe` installer.
-- **Linux local CPU build:** `infiltrator-slicer-0.0.2-native-installer.run`, with the application and pinned dependency sources bundled inside.
+- **Linux amd64:** `infiltrator-slicer_0.0.3_amd64.deb` for Debian/Ubuntu systems with the package's runtime dependencies.
+- **Windows x64:** `slicer-0.0.3-windows.exe` installer.
+- **Linux local CPU build:** `infiltrator-slicer-0.0.3-native-installer.run`, with the application and pinned dependency sources bundled inside.
 
 For a downloaded Debian package:
 
 ```sh
-sudo apt install ./infiltrator-slicer_0.0.2_amd64.deb
+sudo apt install ./infiltrator-slicer_0.0.3_amd64.deb
 slicer --help
 ```
 
@@ -33,9 +33,9 @@ On Windows, run the installer and open **Slicer** from the Start menu. The insta
 For a Linux build optimised for your own CPU:
 
 ```sh
-bash infiltrator-slicer-0.0.2-native-installer.run --profile native
+bash infiltrator-slicer-0.0.3-native-installer.run --profile native
 # GCC two-pass profile-guided optimisation:
-bash infiltrator-slicer-0.0.2-native-installer.run --profile aggressive
+bash infiltrator-slicer-0.0.3-native-installer.run --profile aggressive
 ```
 
 The `.run` builds and tests the application locally, creates a Debian package, and installs that package. Use `--no-install` to retain the package without installing it, or `--dry-run` to inspect the plan. Missing operating-system build tools are reported before compilation; `--install-prerequisites` explicitly allows installing them through APT. Library source archives are bundled and hash-checked, without downloads from third-party build servers.
@@ -60,6 +60,6 @@ The supported distributables are the Linux amd64 DEB, Windows x64 EXE, and Linux
 
 ## Origins and license
 
-Infiltrator Slicer is developed from [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer), which is based on [Slic3r](https://github.com/Slic3r/Slic3r) by Alessandro Ranellucci and the RepRap community. Original copyright notices, third-party licenses, and upstream development history are preserved.
+Infiltrator Slicer uses the [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) engine, derived from [Slic3r](https://github.com/Slic3r/Slic3r). Copyright notices are available through **About → Portions copyright**, the source headers, and the dependency license inventory.
 
 The application is licensed under the [GNU Affero General Public License, version 3 or later](LICENSE). Third-party components retain their own licenses; see the source headers and [vendored dependency license inventory](deps/vendor/LICENSES.md).

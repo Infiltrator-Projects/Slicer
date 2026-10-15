@@ -368,7 +368,13 @@ jobs:
               if (-not $Rejected) { throw 'Unsafe Windows source comparison was accepted.' }
           }
           $Comparison = Read-GitHubJson "repos/$Repo/compare/$($Run.head_sha)...$env:GITHUB_SHA"
-          Assert-WindowsSourcesUnchanged $Comparison
+          try {
+              Assert-WindowsSourcesUnchanged $Comparison
+          } catch {
+              Write-Host "Current Windows sources require a fresh build: $($_.Exception.Message)"
+              "reused=false" >> $env:GITHUB_OUTPUT
+              return
+          }
           Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging, the cancellation test, and workflow files changed."
           "reused=true" >> $env:GITHUB_OUTPUT
 

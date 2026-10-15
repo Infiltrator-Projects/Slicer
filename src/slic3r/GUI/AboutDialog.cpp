@@ -97,6 +97,8 @@ CopyrightsDialog::CopyrightsDialog()
 void CopyrightsDialog::fill_entries()
 {
     m_entries = {
+        { "PrusaSlicer"     , "2016-2026 Prusa Research"                   , "https://github.com/prusa3d/PrusaSlicer" },
+        { "Slic3r"          , "2011-2018 Alessandro Ranellucci"            , "https://github.com/Slic3r/Slic3r" },
         { "wxWidgets"       , "2019 wxWidgets"                              , "https://www.wxwidgets.org/" },
         { "OpenGL"          , "1997-2019 The Khronos™ Group Inc"            , "https://www.opengl.org/" },
         { "GNU gettext"     , "1998, 2019 Free Software Foundation, Inc."   , "https://www.gnu.org/software/gettext/" },
@@ -281,28 +283,23 @@ AboutDialog::AboutDialog()
         // TRN AboutDialog: "Slic3r %1% GNU Affero General Public License"
         const wxString is_lecensed_str  = _L("is licensed under the");
         const wxString license_str      = _L("GNU Affero General Public License, version 3");
-        const wxString based_on_str     = _L("Slicer is developed by Infiltrator Projects, based on PrusaSlicer by Prusa Research and Slic3r by Alessandro Ranellucci and the RepRap community.");
-        const wxString contributors_str = _L("Contributions by Henrik Brix Andersen, Nicolas Dandrimont, Mark Hindess, Petr Ledvina, Joseph Lenox, Y. Sapir, Mike Sheldrake, Vojtech Bubnik and numerous others.");
+        const wxString developer_str    = _L("Developed by Infiltrator Projects.");
         const auto text = format_wxstr(
             "<html>"
             "<body bgcolor= %1% link= %2%>"
             "<font color=%3%>"
-            "%4% &copy; 2016-2026 Prusa Research. <br />"
-            "%5% &copy; 2011-2018 Alessandro Ranellucci. <br />"
-            "<a href=\"https://github.com/Infiltrator-Projects/Slicer\">Slicer</a> %6% "
-            "<a href=\"http://www.gnu.org/licenses/agpl-3.0.html\">%7%</a>."
+            "%4% &copy; 2026 Infiltrator Projects. <br />"
+            "<a href=\"https://github.com/Infiltrator-Projects/Slicer\">Slicer</a> %5% "
+            "<a href=\"http://www.gnu.org/licenses/agpl-3.0.html\">%6%</a>."
             "<br /><br />"
-            "%8%"
-            "<br /><br />"
-            "%9%"
+            "%7%"
             "</font>"
             "</body>"
             "</html>", bgr_clr_str, text_clr_str, text_clr_str
-            , copyright_str, copyright_str
+            , copyright_str
             , is_lecensed_str
             , license_str
-            , based_on_str
-            , contributors_str);
+            , developer_str);
         m_html->SetPage(text);
         vsizer->Add(m_html, 1, wxEXPAND | wxBOTTOM, 10);
         m_html->Bind(wxEVT_HTML_LINK_CLICKED, &AboutDialog::onLinkClicked, this);
