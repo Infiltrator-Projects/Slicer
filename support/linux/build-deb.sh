@@ -74,9 +74,6 @@ arch=$(dpkg --print-architecture)
 version=$(tr -d '[:space:]' < support/VERSION)
 [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] ||
     fail "support/VERSION is not a semantic numeric version"
-cmake_version=$(sed -n 's/^set(SLIC3R_VERSION "\([^"]*\)").*/\1/p' version.inc)
-[[ "$cmake_version" == "$version" ]] ||
-    fail "support/VERSION ($version) does not match version.inc ($cmake_version)"
 
 # Check the app's system HID backend before the long dependency build.
 if ! pkg-config --exists hidapi-hidraw && ! pkg-config --exists hidapi-libusb; then

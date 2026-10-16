@@ -1,8 +1,9 @@
 # Product identity is owned by this repository, independently of upstream tags.
-# Release helpers verify SLIC3R_VERSION against support/VERSION before building.
+# support/VERSION is the single product-version authority.
 set(SLIC3R_APP_NAME "Slicer")
 set(SLIC3R_APP_KEY "InfiltratorSlicer")
-set(SLIC3R_VERSION "0.0.3")
+file(READ "${CMAKE_CURRENT_LIST_DIR}/support/VERSION" SLIC3R_VERSION)
+string(STRIP "${SLIC3R_VERSION}" SLIC3R_VERSION)
 # Printer profile/schema compatibility follows the inherited slicing engine.
 set(SLIC3R_COMPATIBILITY_VERSION "2.9.6")
 set(SLIC3R_BUILD_ID "${SLIC3R_APP_NAME}-${SLIC3R_VERSION}")

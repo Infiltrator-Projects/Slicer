@@ -60,15 +60,6 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     Fail "support/VERSION is not a numeric semantic version."
 }
 
-$VersionText = Get-Content (Join-Path $RepoRoot "version.inc") -Raw
-$Match = [regex]::Match($VersionText, 'set\(SLIC3R_VERSION\s+"([^"]+)"\)')
-if (-not $Match.Success) {
-    Fail "Could not read SLIC3R_VERSION from version.inc."
-}
-if ($Match.Groups[1].Value -ne $Version) {
-    Fail "support/VERSION ($Version) does not match version.inc ($($Match.Groups[1].Value))."
-}
-
 $DependencyPath = Resolve-BuildPath $DependencyDirectory
 $AppBuildPath = Resolve-BuildPath "build"
 # build_win.bat cleans the app build directory after building dependencies.

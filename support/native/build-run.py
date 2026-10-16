@@ -23,10 +23,6 @@ def build(repository, source_ref, output_directory):
     version = git(repository, "show", source_sha + ":support/VERSION").decode().strip()
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
         raise ValueError("support/VERSION must contain a numeric semantic version")
-    version_source = git(repository, "show", source_sha + ":version.inc").decode()
-    match = re.search(r'^set\(SLIC3R_VERSION "([^"]+)"\)', version_source, re.MULTILINE)
-    if not match or match.group(1) != version:
-        raise ValueError("support/VERSION and version.inc differ at the selected commit")
     template = git(repository, "show", source_sha + ":support/native/bootstrap.sh.in").decode()
     roots = git(repository, "ls-tree", "--name-only", "-z", source_sha).decode().split("\0")
     roots = [path for path in roots if path and path not in (".git", "build", "dist")]

@@ -23,8 +23,7 @@ native installer identity and Windows PE executable header. The PE header check 
 asset bytes are compared with the sealed candidates, and only then is it made
 public.
 
-`support/VERSION` is the release authority. It must match `SLIC3R_VERSION` in
-`version.inc`. Once a version has been published, changes outside the workflow
+`support/VERSION` is the release authority. CMake reads it directly through `version.inc`; package and installer helpers read the same file. Once a version has been published, changes outside the workflow
 files require the version to advance before another release can qualify.
 
 ## Recover a failed sealing or publication job

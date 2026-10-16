@@ -63,3 +63,9 @@ The supported distributables are the Linux amd64 DEB, Windows x64 EXE, and Linux
 Infiltrator Slicer uses the [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) engine, derived from [Slic3r](https://github.com/Slic3r/Slic3r). Copyright notices are available through **About → Portions copyright**, the source headers, and the dependency license inventory.
 
 The application is licensed under the [GNU Affero General Public License, version 3 or later](LICENSE). Third-party components retain their own licenses; see the source headers and [vendored dependency license inventory](deps/vendor/LICENSES.md).
+
+## Engineering contracts
+
+[Philosophy](PHILOSOPHY.md) · [Architecture](doc/ARCHITECTURE.md) · [Validation](doc/VALIDATION.md) · [Release engineering](doc/RELEASE_ENGINE.md) · [Changes](CHANGELOG.md).
+
+Product identity is authoritative in [support/VERSION](support/VERSION). The inherited engine's compatibility identity is separate.
