@@ -30,7 +30,7 @@
 #include <libslic3r/Triangulation.hpp> // CGAL project
 
 // Explicit horror include (used to be implicit) - libslic3r "officialy" does not depend on imgui.
-#include "../../bundled_deps/imgui/imgui/imstb_truetype.h" // stbtt_fontinfo
+#include "../bundled_deps/imgui/imgui/imstb_truetype.h" // stbtt_fontinfo
 #include "Utils.hpp" // ScopeGuard
 #include "libslic3r.h"
 // to heal shape

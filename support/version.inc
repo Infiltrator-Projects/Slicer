@@ -2,7 +2,7 @@
 # support/VERSION is the single product-version authority.
 set(SLIC3R_APP_NAME "Slicer")
 set(SLIC3R_APP_KEY "InfiltratorSlicer")
-file(READ "${CMAKE_CURRENT_LIST_DIR}/support/VERSION" SLIC3R_VERSION)
+file(READ "${CMAKE_CURRENT_LIST_DIR}/VERSION" SLIC3R_VERSION)
 string(STRIP "${SLIC3R_VERSION}" SLIC3R_VERSION)
 # Printer profile/schema compatibility follows the inherited slicing engine.
 set(SLIC3R_COMPATIBILITY_VERSION "2.9.6")

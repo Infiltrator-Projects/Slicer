@@ -1,6 +1,6 @@
 # Localisation and translation
 
-Slicer uses GNU gettext catalogues under [resources/localization](../resources/localization). The build defines extraction, catalogue merging and binary compilation targets in the root [CMakeLists.txt](../CMakeLists.txt).
+Slicer uses GNU gettext catalogues under [resources/localization](../support/resources/localization). The build defines extraction, catalogue merging and binary compilation targets in the root [CMakeLists.txt](../CMakeLists.txt).
 
 ## Catalogue ownership
 
@@ -21,13 +21,13 @@ From a configured application build with its tools already built:
 cmake --build build/native/app --target gettext_po_to_mo
 ```
 
-Use the actual application build directory if it differs from the native driver's default. For example, the French source is [PrusaSlicer_fr.po](../resources/localization/fr/PrusaSlicer_fr.po); the compiled catalogue is stored alongside it as `PrusaSlicer.mo`.
+Use the actual application build directory if it differs from the native driver's default. For example, the French source is [PrusaSlicer_fr.po](../support/resources/localization/fr/PrusaSlicer_fr.po); the compiled catalogue is stored alongside it as `PrusaSlicer.mo`.
 
 ## Add a language or source string
 
-Create the locale catalogue from [PrusaSlicer.pot](../resources/localization/PrusaSlicer.pot) with the correct language and plural metadata. Follow the existing locale directory and catalogue naming convention, compile the MO file and verify language selection in the application.
+Create the locale catalogue from [PrusaSlicer.pot](../support/resources/localization/PrusaSlicer.pot) with the correct language and plural metadata. Follow the existing locale directory and catalogue naming convention, compile the MO file and verify language selection in the application.
 
-Mark new translatable source strings with the applicable existing translation macro and add new source files to [list.txt](../resources/localization/list.txt). Regenerate the template through the build target so all configured extraction keywords and generated hints are included:
+Mark new translatable source strings with the applicable existing translation macro and add new source files to [list.txt](../support/resources/localization/list.txt). Regenerate the template through the build target so all configured extraction keywords and generated hints are included:
 
 ```sh
 cmake --build build/native/app --target gettext_make_pot

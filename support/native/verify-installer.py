@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Exercise the real self-extractor and Debian packaging using a small ELF fixture."""
+"""Exercise release-source downloads and Debian packaging with a real ELF fixture."""
 
+import gzip
 import importlib.util
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 
 
@@ -39,9 +41,10 @@ def main():
         repo.mkdir()
         run("git", "init", "-q", "-b", "main", str(repo))
         write(repo / "support/VERSION", VERSION + "\n")
-        write(repo / "version.inc", f'set(SLIC3R_VERSION "{VERSION}")\n')
+        write(repo / "support/version.inc", f'set(SLIC3R_VERSION "{VERSION}")\n')
         write(repo / "LICENSE", "Fixture license retained in source archive.\n")
-        write(repo / "deps/vendor/fixture.txt", "Pinned dependency source fixture.\n")
+        write(repo / "support/deps/vendor/fixture.txt", "Pinned dependency source fixture.\n")
+        write(repo / "support/deps/vendor/manifest.cmake", "# Pinned fixture archive inventory.\n")
         write(repo / "CMakeLists.txt", "# Fixture CMake project\n")
         write(repo / "support/native/bootstrap.sh.in", (ROOT / "support/native/bootstrap.sh.in").read_text())
         write(repo / "support/build-native.sh", r'''#!/usr/bin/env bash
@@ -78,26 +81,45 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/InfiltratorSli
         assert f"Slicer {VERSION}" in run("bash", str(artifact), "--help")
         metadata = json.loads(run("bash", str(artifact), "--metadata"))
         assert metadata["version"] == VERSION and metadata["source_sha"] == sha
+        assert artifact.stat().st_size < 16384, "installer must contain no source payload"
+        expected_url = "https://github.com/Infiltrator-Projects/Slicer/archive/" + sha + ".tar.gz"
+        assert metadata["source_url"] == expected_url
+        archive = work / "release-source.tar.gz"
+        archive.write_bytes(gzip.compress(subprocess.check_output(
+            ["git", "-C", str(repo), "archive", "--format=tar", "--prefix=Slicer-" + sha + "/", "HEAD"]), mtime=0))
+        tools = work / "fixture tools"
+        write(tools / "curl", "#!" + sys.executable + "\n" + r'''import os, pathlib, shutil, sys
+assert sys.argv[-1] == os.environ["LSM_FIXTURE_SOURCE_URL"]
+if os.environ.get("LSM_FIXTURE_DOWNLOAD_FAILURE"):
+    sys.exit(22)
+output = pathlib.Path(sys.argv[sys.argv.index("--output") + 1])
+if os.environ.get("LSM_FIXTURE_CORRUPT_ARCHIVE"):
+    output.write_bytes(b"invalid source archive")
+else:
+    shutil.copyfile(os.environ["LSM_FIXTURE_ARCHIVE"], output)
+''', executable=True)
+        environment = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ["PATH"],
+                           LSM_FIXTURE_SOURCE_URL=expected_url, LSM_FIXTURE_ARCHIVE=str(archive))
 
         build_dir = work / "build space $(touch injected)"
         run("bash", str(artifact), "--profile", "aggressive", "--jobs", "2", "--build-dir", str(build_dir), "--dry-run", "--no-install")
         assert not build_dir.exists(), "dry run must not create build state"
         extracted = work / "extracted source"
-        run("bash", str(artifact), "--extract-only", str(extracted))
+        run("bash", str(artifact), "--download-only", str(extracted), env=environment)
         assert (extracted / "LICENSE").read_text().startswith("Fixture license")
-        assert (extracted / "deps/vendor/fixture.txt").is_file()
+        assert (extracted / "support/deps/vendor/fixture.txt").is_file()
         assert not (extracted / "build").exists()
         assert not (extracted / ".git").exists()
         assert (extracted / ".slicer-source-sha").read_text().strip() == sha
 
-        corrupt = work / "corrupt.run"
-        payload = bytearray(artifact.read_bytes())
-        payload[-20] ^= 1
-        corrupt.write_bytes(payload)
-        refused = subprocess.run(["bash", str(corrupt), "--extract-only", str(work / "corrupt source")], text=True, capture_output=True)
-        assert refused.returncode and "SHA256 mismatch" in refused.stderr, refused.stderr
-        assert not (work / "corrupt source").exists()
-        refused = subprocess.run(["bash", str(artifact), "--extract-only", str(extracted)], capture_output=True)
+        for name, failure in (("failed download", "LSM_FIXTURE_DOWNLOAD_FAILURE"),
+                              ("corrupt download", "LSM_FIXTURE_CORRUPT_ARCHIVE")):
+            destination = work / name
+            refused = subprocess.run(["bash", str(artifact), "--download-only", str(destination)],
+                                     env=dict(environment, **{failure: "1"}), text=True, capture_output=True)
+            assert refused.returncode and not destination.exists(), refused.stderr
+        refused = subprocess.run(["bash", str(artifact), "--download-only", str(extracted)],
+                                 env=environment, capture_output=True)
         assert refused.returncode, "existing populated source must not be overwritten"
 
         # Host package detection is isolated; Debian's real library dependency
@@ -107,7 +129,7 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/InfiltratorSli
         write(tools / "dpkg-query", '#!/usr/bin/env bash\nif [[ $# == 3 && "$1" == -W && "$2" == \'-f=${Status}\' ]]; then\n printf "install ok installed"\nelse\n exec ' + repr(real_query) + ' "$@"\nfi\n', executable=True)
         write(tools / "id", '#!/usr/bin/env bash\nif [[ "$*" == -u ]]; then printf "1000\\n"; else exec /usr/bin/id "$@"; fi\n', executable=True)
         write(tools / "sudo", '#!/usr/bin/env bash\nprintf "unexpected privilege request\\n" >&2\nexit 89\n', executable=True)
-        environment = dict(os.environ, PATH=str(tools) + os.pathsep + os.environ["PATH"])
+        environment = dict(environment, PATH=str(tools) + os.pathsep + os.environ["PATH"])
         run("bash", str(artifact), "--profile", "aggressive", "--jobs", "2", "--build-dir", str(build_dir), "--no-install", env=environment)
         deb = build_dir / "packages" / f"infiltrator-slicer_{VERSION}_amd64.deb"
         assert run("dpkg-deb", "-f", str(deb), "Package").strip() == "infiltrator-slicer"
@@ -119,7 +141,7 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/InfiltratorSli
         assert run(str(installed / "usr/bin/slicer")).startswith("Slicer-" + VERSION)
         assert "Icon=InfiltratorSlicer" in (installed / "usr/share/applications/InfiltratorSlicer.desktop").read_text()
         assert not (work / "injected").exists()
-    print("Native installer: deterministic bundle, verified extraction, corruption refusal, spaced paths, and real ELF Debian packaging passed.")
+    print("Native installer: small deterministic downloader, exact source URL, download/corruption refusal, spaced paths, and real ELF Debian packaging passed.")
 
 
 if __name__ == "__main__":

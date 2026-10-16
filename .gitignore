@@ -23,3 +23,6 @@ deps/build-linux/*
 **/.idea/
 .pkg_cache
 CMakeUserPresets.json
+
+/support/deps/build*/
+/support/deps/.pkg_cache/

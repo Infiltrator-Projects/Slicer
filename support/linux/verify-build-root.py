@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix="slicer-build-root-") as temporary:
     source = base / "source"
     (source / "support").mkdir(parents=True)
     (source / "support/VERSION").write_text("0.0.4\n")
-    (source / "version.inc").write_text("# fixture\n")
+    (source / "support/version.inc").write_text("# fixture\n")
     (source / "CMakeLists.txt").write_text("# fixture\n")
     sentinel = source / "keep-source"
     sentinel.write_text("preserve\n")

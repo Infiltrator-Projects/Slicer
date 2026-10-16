@@ -127,7 +127,7 @@ def verify(vendor_directory):
 
 
 def main():
-    vendor_directory = (Path(__file__).resolve().parents[1] / "deps" / "vendor").resolve()
+    vendor_directory = (Path(__file__).resolve().parent / "deps" / "vendor").resolve()
     try:
         package_count, total_bytes = verify(vendor_directory)
     except (VerificationError, OSError, UnicodeError) as error:

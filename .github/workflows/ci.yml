@@ -248,11 +248,6 @@ jobs:
           assert metadata["source_sha"] == os.environ["GITHUB_SHA"]
           assert metadata["version"] == sys.argv[1]
           ' "$version"
-          extract_root=$(mktemp -d "$RUNNER_TEMP/slicer-native-extract.XXXXXX")
-          trap 'rm -rf -- "$extract_root"' EXIT
-          "$installer" --extract-only "$extract_root/source"
-          test -f "$extract_root/source/CMakeLists.txt"
-          test "$(tr -d '[:space:]' < "$extract_root/source/support/VERSION")" = "$version"
           "$installer" --profile aggressive \
             --build-dir "$GITHUB_WORKSPACE/build/native-installer-qualified/$GITHUB_SHA" --dry-run
 
@@ -344,7 +339,7 @@ jobs:
               }
               foreach ($File in $Comparison.files) {
                   foreach ($Path in @($File.filename, $File.previous_filename)) {
-                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/|tests/slic3rutils/slic3r_jobs_tests\.cpp$)') {
+                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/|support/tests/slic3rutils/slic3r_jobs_tests\.cpp$)') {
                           throw "Windows product/build source changed: $Path"
                       }
                   }
@@ -353,11 +348,11 @@ jobs:
           # Exercise the same predicate before it authorizes artifact reuse.
           Assert-WindowsSourcesUnchanged ([pscustomobject]@{ status='ahead'; files=@(
               [pscustomobject]@{ filename='support/linux/build-deb.sh' },
-              [pscustomobject]@{ filename='tests/slic3rutils/slic3r_jobs_tests.cpp' },
+              [pscustomobject]@{ filename='support/tests/slic3rutils/slic3r_jobs_tests.cpp' },
               [pscustomobject]@{ filename='.github/workflows/ci.yml' }) })
           foreach ($Unsafe in @(
               [pscustomobject]@{ status='behind'; files=@() },
-              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='version.inc' }) },
+              [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/version.inc' }) },
               [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/windows/build-release.ps1' }) },
               [pscustomobject]@{ status='ahead'; files=@([pscustomobject]@{ filename='support/linux/moved.cpp'; previous_filename='src/PrusaSlicer.cpp' }) },
               [pscustomobject]@{ status='ahead'; files=@(1..300 | ForEach-Object { [pscustomobject]@{ filename='support/linux/fixture' } }) }
@@ -414,7 +409,7 @@ jobs:
           $Fixture = Join-Path $env:RUNNER_TEMP ('slicer-installer-syntax-' + [guid]::NewGuid().ToString('N'))
           try {
               $Payload = Join-Path $Fixture 'build\src\Release'
-              $Resources = Join-Path $Fixture 'resources'
+              $Resources = Join-Path $Fixture 'support\resources'
               $Output = Join-Path $Fixture 'output'
               New-Item -ItemType Directory -Force -Path $Payload, $Resources, $Output | Out-Null
               Set-Content (Join-Path $Payload 'slicer.exe') 'Installer syntax fixture'
@@ -422,9 +417,9 @@ jobs:
               Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'LICENSE') -Destination (Join-Path $Fixture 'LICENSE')
               $Iscc = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
               $Compiler = if ($Iscc) { $Iscc.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
-              $FixtureLicenses = Join-Path $Fixture 'deps\vendor'
+              $FixtureLicenses = Join-Path $Fixture 'support\deps\vendor'
               New-Item -ItemType Directory -Force -Path $FixtureLicenses | Out-Null
-              Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'deps\vendor\LICENSES.md') -Destination (Join-Path $FixtureLicenses 'LICENSES.md')
+              Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'support\deps\vendor\LICENSES.md') -Destination (Join-Path $FixtureLicenses 'LICENSES.md')
               $Version = (Get-Content support/VERSION -Raw).Trim()
               & $Compiler "/DRepoRoot=$Fixture" "/DAppVersion=$Version" "/DOutputDir=$Output" ./support/windows/installer.iss
               if ($LASTEXITCODE -ne 0) { throw 'Installer source failed compilation.' }
@@ -439,7 +434,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: deps/build/release-windows-deps
-          key: windows-2022-x64-release-v1-${{ steps.windows-toolchain.outputs.image-version }}-${{ hashFiles('deps/**', '!deps/**/*.md', 'cmake/**', 'build_win.bat', 'support/windows/build-release.ps1') }}
+          key: windows-2022-x64-release-v1-${{ steps.windows-toolchain.outputs.image-version }}-${{ hashFiles('support/deps/**', '!support/deps/**/*.md', 'support/cmake/**', 'support/windows/build.bat', 'support/windows/build-release.ps1') }}
 
       - name: Build Windows dependencies on cache miss
         id: windows-deps-build

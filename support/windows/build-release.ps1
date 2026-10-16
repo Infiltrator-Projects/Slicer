@@ -62,7 +62,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 
 $DependencyPath = Resolve-BuildPath $DependencyDirectory
 $AppBuildPath = Resolve-BuildPath "build"
-# build_win.bat cleans the app build directory after building dependencies.
+# support/windows/build.bat cleans the app build directory after building dependencies.
 # Keep the dependency prefix outside that directory so it survives the cleanup.
 if ($DependencyPath.Equals($AppBuildPath, [StringComparison]::OrdinalIgnoreCase) -or
     $DependencyPath.StartsWith($AppBuildPath + [System.IO.Path]::DirectorySeparatorChar,
@@ -79,7 +79,7 @@ if ($UseCachedDependencies) {
     Write-Host 'Reusing the exact cached Windows x64 Release dependencies.'
 }
 else {
-    & (Join-Path $RepoRoot "build_win.bat") `
+    & (Join-Path $RepoRoot "support\windows\build.bat") `
         -a x64 `
         -v $Toolchain.Major `
         -PRODUCT $Toolchain.Product `

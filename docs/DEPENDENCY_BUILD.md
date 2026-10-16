@@ -1,16 +1,16 @@
 # Slicer dependencies
 
-This directory is the CMake project for Slicer's pinned dependency sources. Normal release builds use the repository-owned Linux and Windows helpers documented in [Release engineering](../doc/RELEASE_ENGINE.md).
+This directory is the CMake project for Slicer's pinned dependency sources. Normal release builds use the repository-owned Linux and Windows helpers documented in [Release engineering](RELEASE_ENGINE.md).
 
 ## Source and build ownership
 
-Each dependency has a definition in a directory prefixed with `+`. CMake's ExternalProject machinery verifies, extracts and builds the archives stored under [vendor](vendor/README.md). Source URLs record provenance; builds consume the local archives and have no upstream source-download fallback.
+Each dependency has a definition in a directory prefixed with `+`. CMake's ExternalProject machinery verifies, extracts and builds the archives stored under [vendor](../support/deps/vendor/README.md). Source URLs record provenance; builds consume the local archives and have no upstream source-download fallback.
 
 Run from the repository root to verify the archive inventory and prepare a standalone dependency build:
 
 ```sh
 python3 support/verify-vendor.py
-cmake -S deps -B build/deps -DDEP_WX_GTK3=ON -DCMAKE_BUILD_TYPE=Release
+cmake -S support/deps -B build/deps -DDEP_WX_GTK3=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build build/deps --parallel 4
 ```
 
@@ -26,5 +26,5 @@ MSVC application and dependency builds must use compatible architectures, runtim
 
 The root [CMake presets](../CMakePresets.json) describe development configurations. Use `cmake --list-presets` from the repository root to inspect them. Release helpers own the precise dependency and application arguments used for qualified packages.
 
-See the [vendor maintenance procedure](vendor/README.md) for archive updates and [dependency boundaries](../doc/Dependencies.md) for the distinction between source inputs and operating-system runtime libraries.
+See the [vendor maintenance procedure](../support/deps/vendor/README.md) for archive updates and [dependency boundaries](Dependencies.md) for the distinction between source inputs and operating-system runtime libraries.
 

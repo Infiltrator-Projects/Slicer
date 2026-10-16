@@ -12,9 +12,7 @@ binaries and the local source installer. It creates exactly three distributable 
 - `infiltrator-slicer-<version>-native-installer.run` — Linux amd64 source installer with native and aggressive CPU compilation modes.
 
 GitHub supplies the source `.zip` and `.tar.gz` automatically from the release
-tag. The `.run` separately embeds the exact Git source tree, including the pinned
-dependency archives, because it must compile locally without third-party source
-downloads. Its header verifies the embedded payload hash before extraction.
+tag. The small `.run` downloads the archive for that exact release commit over HTTPS, including its pinned dependency archives, then compiles and installs on the target machine. It contains no embedded source archive. Vendor hashes are verified before compilation.
 
 The `Publish release` workflow normally consumes the sealed artifacts from the
 exact successful push-to-main `Verify` run. It never rebuilds them. Before publication it
@@ -23,7 +21,7 @@ native installer identity and Windows PE executable header. The PE header check 
 asset bytes are compared with the sealed candidates, and only then is it made
 public.
 
-`support/VERSION` is the release authority. CMake reads it directly through `version.inc`; package and installer helpers read the same file. Once a version has been published, changes outside the workflow
+`support/VERSION` is the release authority. CMake reads it directly through `support/version.inc`; package and installer helpers read the same file. Once a version has been published, changes outside the workflow
 files require the version to advance before another release can qualify.
 
 ## Recover a failed sealing or publication job
@@ -44,8 +42,7 @@ publishing them.
 
 ## Linux native builds
 
-`support/native/build-run.py` creates a deterministic self-extracting source
-installer from a specified Git commit. The installer invokes
+`support/native/build-run.py` creates a small deterministic source downloader pinned to a specified Git commit. The installer invokes
 `support/build-native.sh` on the user's machine, stages the tested native build,
 and creates a local Debian package. The portable public DEB remains a separate
 build.
@@ -55,7 +52,7 @@ Examples:
 ```sh
 support/build-native.sh --profile native
 support/build-native.sh --profile aggressive
-# Or use the downloaded self-contained installer:
+# Or download the release source, compile and install:
 bash infiltrator-slicer-<version>-native-installer.run --profile aggressive
 ```
 
@@ -79,7 +76,7 @@ CI executes the exact generated `.run` in aggressive mode without installing
 onto the persistent runner, runs the native application tests, validates the
 resulting Debian metadata, menu entries, icons and help banner, and seals that
 same `.run` alongside the portable DEB and Windows EXE. Installer fixtures also
-exercise extraction, paths containing spaces and corrupt-payload rejection.
+exercise real archive extraction, exact download URLs, failed/corrupt downloads, paths containing spaces and real ELF package generation.
 
 ## Windows packaging
 
@@ -102,7 +99,7 @@ Application updates use Infiltrator releases and the Infiltrator APT repository.
 
 ## Licence material
 
-CMake staging and the Windows installer include the root [LICENSE](../LICENSE). The native source installer retains that same file in its embedded source archive and verifies its presence after extraction. Source checks and installer fixtures use the same canonical filename.
+CMake staging and the Windows installer include the root [LICENSE](../LICENSE). The native source installer retains that same file in the downloaded release source and verifies its presence after extraction. Source checks and installer fixtures use the same canonical filename.
 
 Linux release build roots carry a source-owner marker. Cleanup refuses the source checkout, its ancestors and unrelated nonempty directories. Existing caches can be adopted only when their CMake source identity matches. This boundary applies before removing stage or build state.
 

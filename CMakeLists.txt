@@ -11,11 +11,11 @@
 cmake_minimum_required(VERSION 3.13)
 project(PrusaSlicer)
 
-include("version.inc")
+include("support/version.inc")
 include(GNUInstallDirs)
 include(CMakeDependentOption)
 
-set(SLIC3R_RESOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+set(SLIC3R_RESOURCES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/support/resources")
 file(TO_NATIVE_PATH "${SLIC3R_RESOURCES_DIR}" SLIC3R_RESOURCES_DIR_WIN)
 
 if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -70,7 +70,7 @@ option(${PROJECT_NAME}_DEPS_OUTPUT_QUIET "Don't print build output for dependenc
 set(${PROJECT_NAME}_DEPS_PRESET "default" CACHE STRING "Preset of the dependencies when ${PROJECT_NAME}_BUILD_DEPS is ON")
 set(${PROJECT_NAME}_DEPS_BUILD_DIR "" CACHE PATH "Binary dir of the dependencies build when ${PROJECT_NAME}_BUILD_DEPS is ON")
 if (${PROJECT_NAME}_BUILD_DEPS)
-    include(deps/autobuild.cmake)
+    include(support/deps/autobuild.cmake)
 endif ()
 
 if (APPLE)
@@ -176,7 +176,7 @@ foreach (DIR ${PREFIX_PATH_CHECK})
 endforeach ()
 
 # Add our own cmake module path.
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake/modules/)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/support/cmake/modules/)
 
 enable_testing ()
 
@@ -599,18 +599,18 @@ function(prusaslicer_copy_dlls target)
     
     # This has to be a separate target due to the windows command line lenght limits    
     add_custom_command(TARGET ${target} POST_BUILD 
-        COMMAND ${CMAKE_COMMAND} -E copy ${TOP_LEVEL_PROJECT_DIR}/deps/+GMP/gmp/lib/win${_bits}/libgmp-10.dll ${_out_dir}
+        COMMAND ${CMAKE_COMMAND} -E copy ${TOP_LEVEL_PROJECT_DIR}/support/deps/+GMP/gmp/lib/win${_bits}/libgmp-10.dll ${_out_dir}
         COMMENT "Copy gmp runtime to build tree"
         VERBATIM)
     
     add_custom_command(TARGET ${target} POST_BUILD 
-        COMMAND ${CMAKE_COMMAND} -E copy ${TOP_LEVEL_PROJECT_DIR}/deps/+MPFR/mpfr/lib/win${_bits}/libmpfr-4.dll ${_out_dir}
+        COMMAND ${CMAKE_COMMAND} -E copy ${TOP_LEVEL_PROJECT_DIR}/support/deps/+MPFR/mpfr/lib/win${_bits}/libmpfr-4.dll ${_out_dir}
         COMMENT "Copy mpfr runtime to build tree"
         VERBATIM)
 endfunction()
 
-add_subdirectory(build-utils)
-add_subdirectory(bundled_deps)
+add_subdirectory(support/build-utils build-utils)
+add_subdirectory(src/bundled_deps bundled_deps)
 # libslic3r, PrusaSlicer GUI and the PrusaSlicer executable.
 add_subdirectory(src)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT PrusaSlicer_app_console)
@@ -618,11 +618,11 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT P
 add_dependencies(gettext_make_pot hintsToPot)
 
 if(SLIC3R_BUILD_SANDBOXES)
-    add_subdirectory(sandboxes)
+    add_subdirectory(support/sandboxes sandboxes)
 endif()
 
 if(SLIC3R_BUILD_TESTS)
-    add_subdirectory(tests)
+    add_subdirectory(support/tests tests)
 endif()
 
 
@@ -662,5 +662,5 @@ endif ()
 # Include the project licence in every CMake-staged distribution.
 include(GNUInstallDirs)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
-              "${CMAKE_CURRENT_SOURCE_DIR}/deps/vendor/LICENSES.md"
+              "${CMAKE_CURRENT_SOURCE_DIR}/support/deps/vendor/LICENSES.md"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/infiltrator-slicer")

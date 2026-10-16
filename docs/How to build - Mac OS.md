@@ -11,7 +11,7 @@ Local development needs Xcode and its command-line tools, CMake, Git and the bui
 From a prepared checkout, a development build uses separate dependency and application directories:
 
 ```sh
-cmake -S deps -B build/macos-deps -DCMAKE_BUILD_TYPE=Release
+cmake -S support/deps -B build/macos-deps -DCMAKE_BUILD_TYPE=Release
 cmake --build build/macos-deps --parallel 4
 cmake -S . -B build/macos \
   -DCMAKE_PREFIX_PATH="$PWD/build/macos-deps/destdir/usr/local" \

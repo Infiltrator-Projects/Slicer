@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 get_filename_component(repo_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-include("${repo_root}/version.inc")
+include("${repo_root}/support/version.inc")
 file(READ "${repo_root}/support/VERSION" release_version)
 string(STRIP "${release_version}" release_version)
 if(NOT SLIC3R_APP_NAME STREQUAL "Slicer" OR NOT SLIC3R_APP_KEY STREQUAL "InfiltratorSlicer")

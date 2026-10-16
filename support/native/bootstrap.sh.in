@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: AGPL-3.0-or-later
-# Self-contained source installer. The compressed source follows this script.
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Download the exact release source and compile it on the target machine.
 set -euo pipefail
 
 VERSION='@SLICER_VERSION@'
 SOURCE_SHA='@SOURCE_SHA@'
-PAYLOAD_SHA256='@PAYLOAD_SHA256@'
-ARCHIVE_SIZE='@ARCHIVE_SIZE@'
-PAYLOAD_OFFSET='@PAYLOAD_OFFSET@'
+SOURCE_URL='@SOURCE_URL@'
 
 fail() { printf 'Error: %s\n' "$*" >&2; exit 1; }
 usage() {
@@ -22,13 +20,14 @@ Usage: bash $(basename "$0") [options]
   --no-install                 Build and test a local .deb without installing it
   --install-prerequisites       Explicitly allow APT to install host build tools
   --skip-tests                 Skip final tests (PGO training still runs)
-  --extract-only DIR           Verify and extract sources only into an empty DIR
+  --download-only DIR           Download release sources only into an empty DIR
   --dry-run                    Print prerequisites and build plan without changes
-  --metadata                   Print embedded version, source and payload hashes
-  -h, --help                   Show this help without extracting sources
+  --metadata                   Print release version, revision and source URL
+  -h, --help                   Show this help without downloading sources
 
-All slicing libraries and their source licences are embedded. APT is used only
-for host development packages when requested and the final local .deb install.
+The release source and pinned dependency archives are downloaded over HTTPS.
+No source archive is embedded. APT is used only for requested host development
+packages and the final local .deb install. curl or wget is required to download.
 Compilation runs as your regular user. The resulting machine-specific .deb is
 for this computer; use the portable release .deb on other machines.
 EOF
@@ -52,7 +51,7 @@ dry_run=0
 metadata=0
 while (($#)); do
     case "$1" in
-        --profile|--compiler|--jobs|--build-dir|--extract-only)
+        --profile|--compiler|--jobs|--build-dir|--download-only)
             (($# >= 2)) || fail "$1 requires a value"
             [[ -n "$2" ]] || fail "$1 requires a nonempty value"
             case "$1" in
@@ -60,7 +59,7 @@ while (($#)); do
                 --compiler) compiler=$2 ;;
                 --jobs) jobs=$2 ;;
                 --build-dir) build_dir=$2 ;;
-                --extract-only) extract_dir=$2 ;;
+                --download-only) extract_dir=$2 ;;
             esac
             shift 2 ;;
         --no-install) no_install=1; shift ;;
@@ -75,8 +74,8 @@ done
 [[ "$profile" == native || "$profile" == aggressive ]] || fail "profile must be native or aggressive"
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || fail "--jobs must be a positive integer"
 if ((metadata)); then
-    printf '{"version":"%s","source_sha":"%s","payload_sha256":"%s","archive_size":%s}\n' \
-        "$VERSION" "$SOURCE_SHA" "$PAYLOAD_SHA256" "$ARCHIVE_SIZE"
+    printf '{"version":"%s","source_sha":"%s","source_url":"%s"}\n' \
+        "$VERSION" "$SOURCE_SHA" "$SOURCE_URL"
     exit 0
 fi
 
@@ -87,16 +86,16 @@ build_root="$build_dir/build"
 stage="$build_dir/stage"
 packages="$build_dir/packages"
 artifact="$packages/infiltrator-slicer_${VERSION}_amd64.deb"
-prerequisites=(autoconf automake build-essential cmake dpkg-dev git python3 perl pkg-config
+prerequisites=(ca-certificates curl gzip tar autoconf automake build-essential cmake dpkg-dev git python3 perl pkg-config
     libdbus-1-dev libglu1-mesa-dev libgtk-3-dev libhidapi-dev libwebkit2gtk-4.1-dev
     texinfo xauth xvfb)
 print_command() { printf ' '; printf '%q ' "$@"; printf '\n'; }
 if ((dry_run)); then
-    printf 'Slicer %s; source %s\nPayload SHA256: %s\nProfile: %s\nBuild directory: %s\n' \
-        "$VERSION" "$SOURCE_SHA" "$PAYLOAD_SHA256" "$profile" "$build_dir"
+    printf 'Slicer %s; source %s\nSource URL: %s\nProfile: %s\nBuild directory: %s\n' \
+        "$VERSION" "$SOURCE_SHA" "$SOURCE_URL" "$profile" "$build_dir"
     printf 'Host prerequisite command (only run with --install-prerequisites):\n'
     print_command sudo apt-get install --no-install-recommends "${prerequisites[@]}"
-    printf 'Verify and extract embedded source and dependency archives; no library source downloads.\nBuild command:\n'
+    printf 'Download the exact release source and its pinned dependencies, then compile them.\nBuild command:\n'
     plan=(bash "$source_dir/support/build-native.sh" --profile "$profile" --compiler "$compiler"
         --jobs "$jobs" --build-root "$build_root" --stage-dir "$stage" --install-prefix /usr)
     ((skip_tests)) && plan+=(--skip-tests)
@@ -107,45 +106,51 @@ if ((dry_run)); then
     exit 0
 fi
 
-self=$(realpath -- "$0")
-payload_file=
+archive_file=
 extract_temporary=
 # shellcheck disable=SC2317 # Invoked by the EXIT trap.
 cleanup() {
-    [[ -z "$payload_file" ]] || rm -f -- "$payload_file"
+    [[ -z "$archive_file" ]] || rm -f -- "$archive_file"
     [[ -z "$extract_temporary" ]] || rm -rf -- "$extract_temporary"
 }
 trap cleanup EXIT
-extract_source() {
-    local destination=$1
-    command -v sha256sum >/dev/null || fail "sha256sum is required for source verification"
+download_source() {
+    local destination=$1 curl_path wget_path
+    curl_path=$(command -v curl 2>/dev/null || true)
+    wget_path=$(command -v wget 2>/dev/null || true)
+    [[ -n "$curl_path" || -n "$wget_path" ]] || fail "install curl or wget to download the release source"
     command -v tar >/dev/null || fail "tar is required for source extraction"
     if [[ -e "$destination" && (! -d "$destination" || -n "$(find "$destination" -mindepth 1 -maxdepth 1 -print -quit)") ]]; then
-        fail "extraction directory must be empty: $destination"
+        fail "download directory must be empty: $destination"
     fi
-    payload_file=$(mktemp "${TMPDIR:-/tmp}/slicer-source.XXXXXX.tar.gz")
-    # Strip leading zeros: tail parses the offset as decimal, Bash arithmetic may not.
-    local offset
-    offset=$(printf '%s' "$PAYLOAD_OFFSET" | sed 's/^0*//')
-    tail -c "+$offset" -- "$self" > "$payload_file"
-    [[ "$(wc -c < "$payload_file")" == "$ARCHIVE_SIZE" ]] || fail "embedded payload size mismatch"
-    [[ "$(sha256sum "$payload_file" | cut -d ' ' -f 1)" == "$PAYLOAD_SHA256" ]] || fail "embedded payload SHA256 mismatch"
+    archive_file=$(mktemp "${TMPDIR:-/tmp}/slicer-source.XXXXXX.tar.gz")
+    printf 'Downloading Slicer %s release source...\n%s\n' "$VERSION" "$SOURCE_URL"
+    if [[ -n "$curl_path" ]]; then
+        "$curl_path" --fail --show-error --location --proto '=https' --proto-redir '=https' \
+            --connect-timeout 30 --max-time 1800 --retry 2 --output "$archive_file" "$SOURCE_URL" ||
+            fail "release source download failed; nothing was installed"
+    else
+        "$wget_path" --https-only --timeout=60 --tries=3 --output-document="$archive_file" "$SOURCE_URL" ||
+            fail "release source download failed; nothing was installed"
+    fi
     mkdir -p -- "$(dirname -- "$destination")"
-    extract_temporary=$(mktemp -d "$(dirname -- "$destination")/.slicer-extract.XXXXXX")
-    tar -xzf "$payload_file" --no-same-owner -C "$extract_temporary"
-    [[ -f "$extract_temporary/support/VERSION" && -f "$extract_temporary/support/build-native.sh" && -f "$extract_temporary/LICENSE" ]] ||
-        fail "embedded source is incomplete"
-    [[ "$(tr -d '[:space:]' < "$extract_temporary/support/VERSION")" == "$VERSION" ]] || fail "embedded source version mismatch"
+    extract_temporary=$(mktemp -d "$(dirname -- "$destination")/.slicer-download.XXXXXX")
+    tar -xzf "$archive_file" --no-same-owner --strip-components=1 -C "$extract_temporary"
+    [[ -f "$extract_temporary/support/VERSION" && -f "$extract_temporary/support/build-native.sh" &&
+       -f "$extract_temporary/support/deps/vendor/manifest.cmake" && -f "$extract_temporary/LICENSE" ]] ||
+        fail "downloaded release source is incomplete"
+    [[ "$(tr -d '[:space:]' < "$extract_temporary/support/VERSION")" == "$VERSION" ]] ||
+        fail "downloaded release source version mismatch"
     printf '%s\n' "$SOURCE_SHA" > "$extract_temporary/.slicer-source-sha"
     [[ ! -d "$destination" ]] || rmdir -- "$destination"
     mv -- "$extract_temporary" "$destination"
     extract_temporary=
-    rm -f -- "$payload_file"
-    payload_file=
+    rm -f -- "$archive_file"
+    archive_file=
 }
 if [[ -n "$extract_dir" ]]; then
-    extract_source "$extract_dir"
-    printf 'Verified Slicer %s sources extracted to %s\n' "$VERSION" "$extract_dir"
+    download_source "$extract_dir"
+    printf 'Slicer %s release sources downloaded to %s\n' "$VERSION" "$extract_dir"
     exit 0
 fi
 
@@ -173,12 +178,13 @@ if [[ -d "$source_dir" ]]; then
     [[ -f "$source_dir/.slicer-source-sha" && "$(cat "$source_dir/.slicer-source-sha")" == "$SOURCE_SHA" ]] ||
         fail "build directory contains another source; choose another --build-dir"
 else
-    extract_source "$source_dir"
+    download_source "$source_dir"
 fi
 
 driver=(bash support/build-native.sh --profile "$profile" --compiler "$compiler" --jobs "$jobs"
     --build-root "$build_root" --stage-dir "$stage" --install-prefix /usr)
 ((skip_tests)) && driver+=(--skip-tests)
+printf 'Compiling the downloaded Slicer source (%s profile)...\n' "$profile"
 (cd "$source_dir"; "${driver[@]}")
 [[ -x "$stage/usr/bin/slicer" ]] || fail "native driver did not stage /usr/bin/slicer"
 metadata_dir="$build_dir/package-meta"
@@ -221,7 +227,7 @@ dpkg-deb --root-owner-group --build "$stage" "$artifact"
 [[ "$(dpkg-deb -f "$artifact" Architecture)" == amd64 ]] || fail "incorrect native package architecture"
 printf 'Native package built: %s\n' "$artifact"
 if ((!no_install)); then
+    printf 'Installing the locally compiled Slicer package...\n'
     sudo apt install "$artifact"
 fi
 exit 0
-# __SLICER_EMBEDDED_SOURCE_FOLLOWS__

@@ -15,7 +15,7 @@ python3 support/native/verify-installer.py
 python3 support/native/verify-driver.py
 ```
 
-Installer fixtures use disposable repositories and paths. They exercise production extraction/driver behaviour, including spaces and corrupt payload rejection.
+Installer fixtures use disposable repositories and paths. They exercise production download/extraction/driver behaviour, including exact release URLs, spaces and failed/corrupt download rejection.
 
 ## Required release evidence
 

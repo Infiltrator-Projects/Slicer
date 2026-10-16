@@ -102,7 +102,7 @@ std::string get_font_filepath() {
 }
 
 // Explicit horror include (used to be implicit) - libslic3r "officialy" does not depend on imgui.
-#include "../../bundled_deps/imgui/imgui/imstb_truetype.h" // stbtt_fontinfo
+#include "../../../src/bundled_deps/imgui/imgui/imstb_truetype.h" // stbtt_fontinfo
 #include "boost/nowide/cstdio.hpp"
 TEST_CASE("Read glyph C shape from font, stb library calls ONLY", "[Emboss]") {
     std::string font_path = get_font_filepath();

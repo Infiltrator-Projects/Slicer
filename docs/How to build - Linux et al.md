@@ -25,7 +25,7 @@ python3 support/verify-vendor.py
 support/linux/build-deb.sh --clean --jobs 4
 ```
 
-The driver builds dependencies and the application, runs CTest, stages installation, derives runtime dependencies and writes the DEB under `dist`. [support/VERSION](../support/VERSION) is the sole product version source; CMake reads it through `version.inc`.
+The driver builds dependencies and the application, runs CTest, stages installation, derives runtime dependencies and writes the DEB under `dist`. [support/VERSION](../support/VERSION) is the sole product version source; CMake reads it through `support/version.inc`.
 
 Install the exact package produced by that checkout:
 
@@ -53,7 +53,7 @@ The downloaded native installer bundles the exact source and pinned archives. Re
 bash "infiltrator-slicer-<version>-native-installer.run" --profile native --jobs 4
 ```
 
-The installer builds unprivileged, tests, packages the staged application and requests administrative access for final installation. It lists missing host development packages; `--install-prerequisites` explicitly permits their installation. Use `--no-install` to retain the DEB without installing it, `--dry-run` to inspect the plan, or `--extract-only DIR` to inspect the source.
+The installer builds unprivileged, tests, packages the staged application and requests administrative access for final installation. It lists missing host development packages; `--install-prerequisites` explicitly permits their installation. Use `--no-install` to retain the DEB without installing it, `--dry-run` to inspect the plan, or `--download-only DIR` to inspect the source.
 
 Dependency prefixes can embed absolute paths. Keep a retained prefix in its original location. The release driver validates build-root ownership before cleanup; incompatible native compiler or optimisation settings require a separate build root or `--clean`.
 

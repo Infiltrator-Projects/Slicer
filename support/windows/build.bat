@@ -11,7 +11,7 @@
 @ECHO Performs initial build or rebuild of the app (build) and deps (build/deps).
 @ECHO Default options are determined from build directories and system state.
 @ECHO.
-@ECHO Usage: build_win [-ARCH ^<arch^>] [-CONFIG ^<config^>] [-VERSION ^<version^>]
+@ECHO Usage: support\windows\build.bat [-ARCH ^<arch^>] [-CONFIG ^<config^>] [-VERSION ^<version^>]
 @ECHO                  [-PRODUCT ^<product^>] [-DESTDIR ^<directory^>]
 @ECHO                  [-STEPS ^<all^|all-dirty^|app^|app-dirty^|deps^|deps-dirty^>]
 @ECHO                  [-RUN ^<console^|custom^|none^|viewer^|window^>]
@@ -49,11 +49,11 @@
 @ECHO.
 @ECHO  Examples:
 @ECHO.
-@ECHO  Initial build:           build_win -d "c:\src\PrusaSlicer-deps"
-@ECHO  Build post deps change:  build_win -s all
-@ECHO  App dirty build:         build_win
-@ECHO  App dirty build ^& run:   build_win -r console
-@ECHO  All clean build ^& run:   build_win -s all -r console -d "deps\build\out_deps"
+@ECHO  Initial build:           support\windows\build.bat -d "c:\src\Slicer-deps"
+@ECHO  Build post deps change:  support\windows\build.bat -s all
+@ECHO  App dirty build:         support\windows\build.bat
+@ECHO  App dirty build ^& run:   support\windows\build.bat -r console
+@ECHO  All clean build ^& run:   support\windows\build.bat -s all -r console -d "support\deps\build\out_deps"
 @ECHO.
 GOTO :END
 
@@ -65,7 +65,7 @@ SET PS_SOLUTION_NAME=PrusaSlicer
 SET PS_CHOICE_TIMEOUT=30
 SET PS_CUSTOM_RUN_FILE=custom_run.bat
 SET PS_DEPS_PATH_FILE_NAME=.DEPS_PATH.txt
-SET PS_DEPS_PATH_FILE=%~dp0deps\build\%PS_DEPS_PATH_FILE_NAME%
+SET PS_DEPS_PATH_FILE=%~dp0..\..\support\deps\build\%PS_DEPS_PATH_FILE_NAME%
 SET PS_CONFIG_LIST="Debug;MinSizeRel;Release;RelWithDebInfo"
 
 REM Update this script for new versions by setting PS_VERSION_SUPPORTED to a
@@ -90,7 +90,7 @@ FOR /F "tokens=1 USEBACKQ delims=." %%I IN (
 ) DO SET PS_VERSION_SUPPORTED=%%I
 
 REM Probe build directories and system state for reasonable default arguments
-pushd %~dp0
+pushd "%~dp0..\..\"
 SET PS_CONFIG=RelWithDebInfo
 SET PS_ARCH=%PROCESSOR_ARCHITECTURE%
 IF DEFINED PROCESSOR_ARCHITEW6432 SET PS_ARCH=%PROCESSOR_ARCHITEW6432%
@@ -222,10 +222,10 @@ REM Build deps
 SET EXIT_STATUS=3
 SET PS_CURRENT_STEP=deps
 IF "%PS_STEPS_DIRTY%" EQU "" (
-    CALL :MAKE_OR_CLEAN_DIRECTORY deps\build "%PS_DEPS_PATH_FILE_NAME%" .vs
+    CALL :MAKE_OR_CLEAN_DIRECTORY support\deps\build "%PS_DEPS_PATH_FILE_NAME%" .vs
     CALL :MAKE_OR_CLEAN_DIRECTORY "%PS_DESTDIR%"
 )
-cd deps\build || GOTO :END
+cd support\deps\build || GOTO :END
 SET PS_DEP_DEBUG=OFF
 IF /I "%PS_CONFIG%" EQU "Debug" SET PS_DEP_DEBUG=ON
 cmake.exe .. -DDESTDIR="%PS_DESTDIR%" -DDEP_DEBUG=%PS_DEP_DEBUG%
@@ -234,7 +234,7 @@ IF %ERRORLEVEL% NEQ 0 IF "%PS_STEPS_DIRTY%" NEQ "" (
 ) ELSE GOTO :END
 (echo %PS_DESTDIR%)> "%PS_DEPS_PATH_FILE%"
 msbuild /m ALL_BUILD.vcxproj /p:Configuration=%PS_CONFIG% /v:quiet %PS_PRIORITY% || GOTO :END
-cd ..\..
+cd ..\..\..
 IF /I "%PS_STEPS:~0,4%" EQU "deps" GOTO :RUN_APP
 
 REM Build app
@@ -336,10 +336,10 @@ REM Functions and stubs start here.
 :RESOLVE_DESTDIR_CACHE
 @REM Resolves all DESTDIR cache values and sets PS_STEPS_DEFAULT
 @REM Note: This just sets global variables, so it doesn't use setlocal.
-SET PS_DEPS_PATH_FILE_FOR_CONFIG=%~dp0build\.vs\%PS_ARCH%\%PS_CONFIG%\%PS_DEPS_PATH_FILE_NAME%
-mkdir "%~dp0build\.vs\%PS_ARCH%\%PS_CONFIG%" > nul 2> nul
+SET PS_DEPS_PATH_FILE_FOR_CONFIG=%~dp0..\..\build\.vs\%PS_ARCH%\%PS_CONFIG%\%PS_DEPS_PATH_FILE_NAME%
+mkdir "%~dp0..\..\build\.vs\%PS_ARCH%\%PS_CONFIG%" > nul 2> nul
 REM Copy a legacy file if we don't have one in the proper location.
-echo f|xcopy /D "%~dp0build\%PS_ARCH%\%PS_CONFIG%\%PS_DEPS_PATH_FILE_NAME%" "%PS_DEPS_PATH_FILE_FOR_CONFIG%" > nul 2> nul
+echo f|xcopy /D "%~dp0..\..\build\%PS_ARCH%\%PS_CONFIG%\%PS_DEPS_PATH_FILE_NAME%" "%PS_DEPS_PATH_FILE_FOR_CONFIG%" > nul 2> nul
 CALL :CANONICALIZE_PATH PS_DEPS_PATH_FILE_FOR_CONFIG
 IF EXIST "%PS_DEPS_PATH_FILE_FOR_CONFIG%" (
     FOR /F "tokens=* USEBACKQ" %%I IN ("%PS_DEPS_PATH_FILE_FOR_CONFIG%") DO (

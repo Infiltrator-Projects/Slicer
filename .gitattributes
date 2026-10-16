@@ -1,4 +1,4 @@
 # Preserve exact upstream archive bytes on every platform.
-deps/vendor/** -text -diff
-deps/vendor/manifest.cmake text diff
-deps/vendor/*.md text diff
+support/deps/vendor/** -text -diff
+support/deps/vendor/manifest.cmake text diff
+support/deps/vendor/*.md text diff

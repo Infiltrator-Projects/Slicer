@@ -23,13 +23,13 @@ def main():
         repo.mkdir()
         build = Path(temporary) / "build with spaces"
         stage = Path(temporary) / "stage with spaces"
-        write(repo / "version.inc", 'set(SLIC3R_VERSION "0.0.2")\n')
+        write(repo / "support/version.inc", 'set(SLIC3R_VERSION "0.0.2")\n')
         write(repo / "support/VERSION", "0.0.2\n")
-        write(repo / "deps/vendor/manifest.cmake", "# No external libraries in this compiler fixture.\n")
+        write(repo / "support/deps/vendor/manifest.cmake", "# No external libraries in this compiler fixture.\n")
         write(repo / "support/verify-vendor.py", "print('Compiler fixture has no external dependencies.')\n")
-        write(repo / "tests/data/default_fff.ini", "# Fixture configuration\n")
-        write(repo / "tests/data/20mm_cube.obj", "# Fixture model\n")
-        write(repo / "deps/CMakeLists.txt", "cmake_minimum_required(VERSION 3.13)\nproject(dependency_fixture NONE)\n")
+        write(repo / "support/tests/data/default_fff.ini", "# Fixture configuration\n")
+        write(repo / "support/tests/data/20mm_cube.obj", "# Fixture model\n")
+        write(repo / "support/deps/CMakeLists.txt", "cmake_minimum_required(VERSION 3.13)\nproject(dependency_fixture NONE)\n")
         write(repo / "CMakeLists.txt", r'''cmake_minimum_required(VERSION 3.13)
 project(native_driver_fixture LANGUAGES C CXX)
 add_executable(prusa-slicer main.cpp)

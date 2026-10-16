@@ -114,7 +114,7 @@ done
 [[ "$profile" == native || "$profile" == aggressive ]] ||
     fail "profile must be native or aggressive"
 
-[[ -f CMakeLists.txt && -f version.inc && -d deps ]] ||
+[[ -f CMakeLists.txt && -f support/version.inc && -d support/deps ]] ||
     fail "run this script from the Slicer repository root"
 
 for tool in cmake python3 realpath sha256sum; do
@@ -267,8 +267,8 @@ configuration=$(printf '%s\n' \
     "prefix=$install_prefix" \
     "fhs=$fhs" \
     "cmake=$cmake_version" \
-    "version=$(sha256sum version.inc support/VERSION)" \
-    "vendor=$(sha256sum deps/vendor/manifest.cmake)")
+    "version=$(sha256sum support/version.inc support/VERSION)" \
+    "vendor=$(sha256sum support/deps/vendor/manifest.cmake)")
 if ((clean)); then
     rm -rf -- "$build_root"
 elif [[ -f "$build_root/.slicer-native-config" ]]; then
@@ -289,7 +289,7 @@ export CFLAGS="$common_flags_text" CXXFLAGS="$common_flags_text" LDFLAGS=
 
 echo
 echo "Building or refreshing static dependency bundle..."
-cmake -S deps -B "$deps_build" \
+cmake -S support/deps -B "$deps_build" \
     "${policy_args[@]}" \
     -DDEP_WX_GTK3=ON \
     -DDEP_MAX_THREADS="$jobs" \
@@ -365,9 +365,9 @@ if [[ "$profile" == aggressive ]]; then
     slicer_binary="$app_build/src/prusa-slicer"
     [[ -x "$slicer_binary" ]] || fail "instrumented Slicer executable was not produced"
     "$slicer_binary" --help >/dev/null
-    "$slicer_binary" --info tests/data/20mm_cube.obj >/dev/null
-    "$slicer_binary" --load tests/data/default_fff.ini --export-gcode \
-        --output "$pgo_dir/training-cube.gcode" tests/data/20mm_cube.obj
+    "$slicer_binary" --info support/tests/data/20mm_cube.obj >/dev/null
+    "$slicer_binary" --load support/tests/data/default_fff.ini --export-gcode \
+        --output "$pgo_dir/training-cube.gcode" support/tests/data/20mm_cube.obj
     [[ -s "$pgo_dir/training-cube.gcode" ]] || fail "PGO slicing training produced no G-code"
 
     find "$pgo_dir" -type f \( -name '*.gcda' -o -name '*.gcov' \) -print -quit |

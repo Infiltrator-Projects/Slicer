@@ -18,5 +18,5 @@ The executable target is `sla_time_estimate_app`. Its local [CMakeLists.txt](CMa
 
 ## Evidence
 
-A standalone tool run does not qualify the desktop application or establish physical printer timing. Record the input, source revision and observed estimate when using it for development. Follow the repository's [validation boundaries](../../doc/VALIDATION.md).
+A standalone tool run does not qualify the desktop application or establish physical printer timing. Record the input, source revision and observed estimate when using it for development. Follow the repository's [validation boundaries](../../docs/VALIDATION.md).
 

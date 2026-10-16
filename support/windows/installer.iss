@@ -40,12 +40,12 @@ UninstallDisplayIcon={app}\slicer.exe
 SetupLogging=yes
 
 [Files]
-Source: "{#RepoRoot}\deps\vendor\LICENSES.md"; DestDir: "{app}\licenses"; Flags: ignoreversion
+Source: "{#RepoRoot}\support\deps\vendor\LICENSES.md"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "{#RepoRoot}\LICENSE"; DestDir: "{app}\licenses"; Flags: ignoreversion
 ; The build tree contains generated DLLs beside the launchers. Resources are
 ; copied from the repository rather than following the build-time junction.
 Source: "{#RepoRoot}\build\src\Release\*"; DestDir: "{app}"; Excludes: "resources\*;*.pdb;*.ilk;*.exp;*.lib"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "{#RepoRoot}\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#RepoRoot}\support\resources\*"; DestDir: "{app}\resources"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{autoprograms}\Slicer"; Filename: "{app}\slicer.exe"; Check: not IsCISmoke

@@ -61,7 +61,7 @@ while (($#)); do
     esac
 done
 
-[[ -f CMakeLists.txt && -f version.inc && -f support/VERSION ]] ||
+[[ -f CMakeLists.txt && -f support/version.inc && -f support/VERSION ]] ||
     fail "run this script from the Slicer repository root"
 
 for tool in realpath awk cmake dpkg dpkg-deb dpkg-shlibdeps du sed pkg-config; do
@@ -111,6 +111,7 @@ if [[ -f "$owner" ]]; then
 elif [[ -d "$build_base" && -n "$(find "$build_base" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
     # Adopt pre-marker caches only when CMake proves this checkout owns them.
     if ! grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root" "$build_base/app/CMakeCache.txt" 2>/dev/null &&
+       ! grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root/support/deps" "$build_base/deps/CMakeCache.txt" 2>/dev/null &&
        ! grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root/deps" "$build_base/deps/CMakeCache.txt" 2>/dev/null; then
         fail "nonempty build root has no matching Slicer ownership"
     fi
@@ -133,7 +134,14 @@ rm -rf "$stage" "$metadata"
 mkdir -p "$output"
 
 echo "Building Slicer $version Linux release..."
-cmake -S deps -B "$deps_build" \
+# Retain dependency objects and installed libraries when moving the same
+# checkout's superbuild. Only its generated top-level CMake metadata names the
+# old source location; foreign caches remain protected by the owner gate.
+if grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root/deps" "$deps_build/CMakeCache.txt" 2>/dev/null; then
+    rm -f -- "$deps_build/CMakeCache.txt"
+    rm -rf -- "$deps_build/CMakeFiles"
+fi
+cmake -S support/deps -B "$deps_build" \
     -DDEP_WX_GTK3=ON \
     -DDESTDIR="$deps_build/destdir" \
     -DCMAKE_BUILD_TYPE=Release

@@ -16,5 +16,5 @@ The slicing engine owns geometry, model transformation, toolpath and G-code sema
 
 Keep one authority per concern. Product versions, profile compatibility, build inputs and publication each have an explicit owner. Qualification produces artifacts; publication promotes those exact bytes. Published release tags and assets remain immutable.
 
-Geometry tests, application smoke tests, installer qualification and physical printer validation establish different claims. Record unsupported or unverified behaviour explicitly. [Architecture](doc/ARCHITECTURE.md) and [Validation](doc/VALIDATION.md) specialise the shared standard for this product.
+Geometry tests, application smoke tests, installer qualification and physical printer validation establish different claims. Record unsupported or unverified behaviour explicitly. [Architecture](ARCHITECTURE.md) and [Validation](VALIDATION.md) specialise the shared standard for this product.
 
