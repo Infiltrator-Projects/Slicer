@@ -11,8 +11,8 @@
   <description>
     <p>Slicer prepares 3D models for filament and resin printers, with printer profiles, print previews and G-code export.</p>
   </description>
-  <launchable type="desktop-id">InfiltratorSlicer.desktop</launchable>
-  <icon type="stock">InfiltratorSlicer</icon>
+  <launchable type="desktop-id">Slicer.desktop</launchable>
+  <icon type="stock">Slicer</icon>
   <url type="homepage">https://github.com/Infiltrator-Projects/Slicer</url>
   <url type="bugtracker">https://github.com/Infiltrator-Projects/Slicer/issues</url>
   <url type="vcs-browser">https://github.com/Infiltrator-Projects/Slicer</url>

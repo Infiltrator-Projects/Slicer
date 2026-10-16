@@ -24,7 +24,7 @@
 
 
 #define GCODEVIEWER_APP_NAME "Slicer G-code Viewer"
-#define GCODEVIEWER_APP_KEY  "InfiltratorSlicerGcodeViewer"
+#define GCODEVIEWER_APP_KEY  "SlicerGcodeViewer"
 
 // this needs to be included early for MSVC (listing it in Build.PL is not enough)
 #include <memory>

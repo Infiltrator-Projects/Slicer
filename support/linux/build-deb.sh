@@ -204,9 +204,6 @@ Architecture: amd64
 Maintainer: Infiltrator Projects
 Homepage: https://github.com/Infiltrator-Projects/Slicer
 Depends: $depends
-Conflicts: prusa-slicer, infiltrator-slicer
-Replaces: prusa-slicer, infiltrator-slicer
-Provides: infiltrator-slicer (= $version)
 Installed-Size: $installed_size
 Description: Slicer
  Slicer converts 3D models into printer toolpaths and G-code.

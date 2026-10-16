@@ -194,11 +194,11 @@ jobs:
           smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-deb-smoke.XXXXXX")
           trap 'rm -rf -- "$smoke_root"' EXIT
           dpkg-deb --extract "$deb" "$smoke_root"
-          python3 support/verify-fonts.py "$smoke_root/usr/share/InfiltratorSlicer/fonts"
-          grep -Fx 'Name=Slicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
-          grep -Fx 'Icon=InfiltratorSlicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
-          grep -Fx 'Exec=slicer %F' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
-          test -s "$smoke_root/usr/share/icons/hicolor/scalable/apps/InfiltratorSlicer.svg"
+          python3 support/verify-fonts.py "$smoke_root/usr/share/Slicer/fonts"
+          grep -Fx 'Name=Slicer' "$smoke_root/usr/share/applications/Slicer.desktop"
+          grep -Fx 'Icon=Slicer' "$smoke_root/usr/share/applications/Slicer.desktop"
+          grep -Fx 'Exec=slicer %F' "$smoke_root/usr/share/applications/Slicer.desktop"
+          test -s "$smoke_root/usr/share/icons/hicolor/scalable/apps/Slicer.svg"
           test ! -e "$smoke_root/usr/share/applications/PrusaSlicer.desktop"
           help_output=$(xvfb-run -a "$smoke_root/usr/bin/slicer" --help)
           version_pattern="^Slicer-${version//./\\.}([^0-9.]|$)"
@@ -292,11 +292,11 @@ jobs:
           smoke_root=$(mktemp -d "$RUNNER_TEMP/slicer-native-smoke.XXXXXX")
           trap 'rm -rf -- "$smoke_root"' EXIT
           dpkg-deb --extract "$deb" "$smoke_root"
-          python3 support/verify-fonts.py "$smoke_root/usr/share/InfiltratorSlicer/fonts"
-          grep -Fx 'Name=Slicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
-          grep -Fx 'Icon=InfiltratorSlicer' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
-          grep -Fx 'Exec=slicer %F' "$smoke_root/usr/share/applications/InfiltratorSlicer.desktop"
-          test -s "$smoke_root/usr/share/icons/hicolor/scalable/apps/InfiltratorSlicer.svg"
+          python3 support/verify-fonts.py "$smoke_root/usr/share/Slicer/fonts"
+          grep -Fx 'Name=Slicer' "$smoke_root/usr/share/applications/Slicer.desktop"
+          grep -Fx 'Icon=Slicer' "$smoke_root/usr/share/applications/Slicer.desktop"
+          grep -Fx 'Exec=slicer %F' "$smoke_root/usr/share/applications/Slicer.desktop"
+          test -s "$smoke_root/usr/share/icons/hicolor/scalable/apps/Slicer.svg"
           test ! -e "$smoke_root/usr/share/applications/PrusaSlicer.desktop"
           help_output=$(xvfb-run -a "$smoke_root/usr/bin/slicer" --help)
           version_pattern="^Slicer-${version//./\\.}([^0-9.]|$)"

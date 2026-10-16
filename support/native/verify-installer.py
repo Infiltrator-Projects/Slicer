@@ -66,8 +66,8 @@ mkdir -p "$stage/usr/bin" "$stage/usr/share/applications" "$stage/usr/share/icon
 version=$(cat support/VERSION)
 printf '#include <stdio.h>\nint main(void){puts("Slicer-%s fixture");return 0;}\n' "$version" > fixture.c
 gcc fixture.c -o "$stage/usr/bin/slicer"
-printf '[Desktop Entry]\nName=Slicer\nExec=slicer %%F\nIcon=InfiltratorSlicer\nType=Application\n' > "$stage/usr/share/applications/InfiltratorSlicer.desktop"
-printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/InfiltratorSlicer.svg"
+printf '[Desktop Entry]\nName=Slicer\nExec=slicer %%F\nIcon=Slicer\nType=Application\n' > "$stage/usr/share/applications/Slicer.desktop"
+printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/Slicer.svg"
 ''', executable=True)
         run("git", "-C", str(repo), "add", ".")
         run("git", "-C", str(repo), "-c", "user.name=Installer Fixture", "-c", "user.email=fixture@example.invalid",
@@ -135,28 +135,15 @@ else:
         assert run("dpkg-deb", "-f", str(deb), "Package").strip() == "slicer"
         assert run("dpkg-deb", "-f", str(deb), "Version").strip() == VERSION
         assert run("dpkg-deb", "-f", str(deb), "Description").splitlines()[0] == "Slicer"
-        assert run("dpkg-deb", "-f", str(deb), "Provides").strip() == f"infiltrator-slicer (= {VERSION})"
-        assert "infiltrator-slicer" in run("dpkg-deb", "-f", str(deb), "Conflicts")
-        assert "infiltrator-slicer" in run("dpkg-deb", "-f", str(deb), "Replaces")
-        # Resolve both published legacy identities without touching host APT state.
-        for legacy_version in ("0.0.4", "2.9.6"):
-            status = work / ("apt-status-" + legacy_version)
-            status.write_text(Path("/var/lib/dpkg/status").read_text() +
-                              "\nPackage: infiltrator-slicer\nStatus: install ok installed\n"
-                              f"Version: {legacy_version}\nArchitecture: amd64\n"
-                              "Maintainer: Test <test@example.invalid>\nDescription: legacy Slicer\n\n")
-            resolved = run("apt-get", "--simulate", "--no-download",
-                           "-o", "Debug::NoLocking=true", "-o", f"Dir::State::status={status}",
-                           "-o", "Dir::Etc::sourcelist=/dev/null", "-o", "Dir::Etc::sourceparts=-",
-                           "-o", "Dir::Cache::pkgcache=", "-o", "Dir::Cache::srcpkgcache=",
-                           "install", str(deb), env=dict(os.environ, LC_ALL="C"))
-            assert "Remv infiltrator-slicer" in resolved and "Inst slicer " in resolved, resolved
+        control = run("dpkg-deb", "--field", str(deb))
+        assert not any(line.startswith(("Provides:", "Replaces:", "Conflicts:"))
+                       for line in control.splitlines()), control
         assert run("dpkg-deb", "-f", str(deb), "X-Slicer-Build-Profile").strip() == "aggressive"
         assert run("dpkg-deb", "-f", str(deb), "X-Slicer-Source-SHA").strip() == sha
         installed = work / "package extract"
         run("dpkg-deb", "--extract", str(deb), str(installed))
         assert run(str(installed / "usr/bin/slicer")).startswith("Slicer-" + VERSION)
-        assert "Icon=InfiltratorSlicer" in (installed / "usr/share/applications/InfiltratorSlicer.desktop").read_text()
+        assert "Icon=Slicer" in (installed / "usr/share/applications/Slicer.desktop").read_text()
         assert not (work / "injected").exists()
     print("Native installer: small deterministic downloader, exact source URL, download/corruption refusal, spaced paths, and real ELF Debian packaging passed.")
 

@@ -73,7 +73,7 @@ end;
 function GetInstallAppId(Param: String): String;
 begin
   if IsCISmoke then
-    Result := 'InfiltratorSlicerSmoke-' + CISmokeToken
+    Result := 'SlicerSmoke-' + CISmokeToken
   else
     Result := '{88BE4658-A3A2-4201-9841-B516AE357B0F}';
 end;

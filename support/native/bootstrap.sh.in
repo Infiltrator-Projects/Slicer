@@ -212,9 +212,6 @@ Architecture: amd64
 Maintainer: Infiltrator Projects
 Homepage: https://github.com/Infiltrator-Projects/Slicer
 Depends: $depends
-Conflicts: prusa-slicer, infiltrator-slicer
-Replaces: prusa-slicer, infiltrator-slicer
-Provides: infiltrator-slicer (= $VERSION)
 Installed-Size: $installed_size
 X-Slicer-Build-Profile: $profile
 X-Slicer-Source-SHA: $SOURCE_SHA

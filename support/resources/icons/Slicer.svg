@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<title>Infiltrator Slicer</title>
+<title>Slicer</title>
 <rect x="0" y="0" width="256" height="256" rx="48" fill="#101e30"/>
 <polygon points="128,152 216,194 128,236 40,194" fill="#125265"/>
 <polygon points="128,108 216,150 128,192 40,150" fill="#25d9c4"/>

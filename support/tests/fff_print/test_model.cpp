@@ -16,7 +16,7 @@ using namespace Slic3r::Test;
 
 TEST_CASE("Slicer projects retain product and engine versions on round trip", "[Model][3MF]") {
     const auto path = boost::filesystem::temp_directory_path() /
-        boost::filesystem::unique_path("infiltrator-slicer-%%%%-%%%%.3mf");
+        boost::filesystem::unique_path("slicer-%%%%-%%%%.3mf");
     ScopeGuard cleanup([&path] { boost::filesystem::remove(path); });
     Model original;
     SECTION("A project with a model") {

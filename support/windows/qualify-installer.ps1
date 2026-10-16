@@ -56,7 +56,7 @@ try {
     if (Get-ChildItem -LiteralPath $InstallDir -Filter 'unins*.exe') {
         throw "CI smoke mode unexpectedly created an uninstaller."
     }
-    $UninstallKey = "InfiltratorSlicerSmoke-${Token}_is1"
+    $UninstallKey = "SlicerSmoke-${Token}_is1"
     foreach ($RegistryRoot in @(
         'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall',
         'HKCU:\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall',

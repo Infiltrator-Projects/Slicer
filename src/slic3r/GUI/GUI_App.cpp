@@ -1454,7 +1454,7 @@ bool GUI_App::on_init_inner()
     if (app_config->get_bool("show_splash_screen")) {
         // make a bitmap with dark grey banner on the left side
         BitmapCache splash_cache;
-        wxBitmap* artwork = splash_cache.load_svg("InfiltratorSlicer-splash", 600, 480);
+        wxBitmap* artwork = splash_cache.load_svg("Slicer-splash", 600, 480);
         wxBitmap splash_bitmap = artwork != nullptr ? *artwork :
             get_bmp_bundle(logo_name(), 400)->GetBitmap(wxSize(400, 400));
         wxBitmap bmp = SplashScreen::MakeBitmap(splash_bitmap);

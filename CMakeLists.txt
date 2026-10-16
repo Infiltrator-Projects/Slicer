@@ -634,21 +634,21 @@ elseif (SLIC3R_FHS)
     install(DIRECTORY ${SLIC3R_RESOURCES_DIR}/ DESTINATION ${SLIC3R_FHS_RESOURCES}
         PATTERN "*/udev" EXCLUDE
     )
-    install(FILES src/platform/unix/PrusaSlicer.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications RENAME InfiltratorSlicer.desktop)
-    install(FILES src/platform/unix/PrusaGcodeviewer.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications RENAME InfiltratorSlicer-gcodeviewer.desktop)
+    install(FILES src/platform/unix/PrusaSlicer.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications RENAME Slicer.desktop)
+    install(FILES src/platform/unix/PrusaGcodeviewer.desktop DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications RENAME Slicer-gcodeviewer.desktop)
     configure_file(src/platform/unix/io.github.Infiltrator_Projects.Slicer.metainfo.xml.in
         ${CMAKE_CURRENT_BINARY_DIR}/io.github.Infiltrator_Projects.Slicer.metainfo.xml @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/io.github.Infiltrator_Projects.Slicer.metainfo.xml
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo)
-    install(FILES ${SLIC3R_RESOURCES_DIR}/icons/InfiltratorSlicer.svg
-        ${SLIC3R_RESOURCES_DIR}/icons/InfiltratorSlicer-gcodeviewer.svg
+    install(FILES ${SLIC3R_RESOURCES_DIR}/icons/Slicer.svg
+        ${SLIC3R_RESOURCES_DIR}/icons/Slicer-gcodeviewer.svg
         DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/scalable/apps)
     foreach(SIZE 32 128 192)
-        install(FILES ${SLIC3R_RESOURCES_DIR}/icons/InfiltratorSlicer_${SIZE}px.png
-            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps RENAME InfiltratorSlicer.png
+        install(FILES ${SLIC3R_RESOURCES_DIR}/icons/Slicer_${SIZE}px.png
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps RENAME Slicer.png
         )
-        install(FILES ${SLIC3R_RESOURCES_DIR}/icons/InfiltratorSlicer-gcodeviewer_${SIZE}px.png
-            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps RENAME InfiltratorSlicer-gcodeviewer.png
+        install(FILES ${SLIC3R_RESOURCES_DIR}/icons/Slicer-gcodeviewer_${SIZE}px.png
+            DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/${SIZE}x${SIZE}/apps RENAME Slicer-gcodeviewer.png
         )
     endforeach()
     install(DIRECTORY ${SLIC3R_RESOURCES_DIR}/udev/ DESTINATION lib/udev/rules.d)

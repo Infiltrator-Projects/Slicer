@@ -4093,7 +4093,7 @@ std::pair<bool, std::optional<Semver>> is_project_3mf(const std::string& filenam
                     memset(buffer, 0, sizeof(buffer));
                     if (size_t bytes_read = mz_zip_reader_extract_iter_read(iter, buffer, sizeof(buffer)); bytes_read > 0) {
                         std::string header(buffer, bytes_read);
-                        boost::regex pattern(R"(^\s*<metadata name="Application".*?(?:PrusaSlicer|InfiltratorSlicer)-(.*?)</metadata>$)");
+                        boost::regex pattern(R"(^\s*<metadata name="Application".*?(?:PrusaSlicer|Slicer)-(.*?)</metadata>$)");
                         boost::sregex_iterator it(header.begin(), header.end(), pattern);
                         boost::sregex_iterator end;
                         if (it != end) {
