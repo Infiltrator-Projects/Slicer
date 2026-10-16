@@ -1,4 +1,5 @@
 name: Qualify GUI and publish existing candidates
+run-name: Publish Slicer 0.0.5 from qualified installers
 
 on:
   push:

@@ -251,21 +251,46 @@ jobs:
             --arg source "$SOURCE_SHA" --arg version "$version" \
             '.source_sha == $source and .version == $version' >/dev/null
 
-          current_main=$(gh api "repos/${GH_REPO}/git/ref/heads/main" --jq '.object.sha')
-          if [[ "$current_main" != "$SOURCE_SHA" ]]; then
-            gh api "repos/${GH_REPO}/compare/${SOURCE_SHA}...${current_main}" > source-comparison.json
+          workflow_only_difference() {
+            local base=$1 head=$2 comparison
+            [[ "$base" =~ ^[0-9a-f]{40}$ && "$head" =~ ^[0-9a-f]{40}$ ]] || return 1
+            [[ "$base" != "$head" ]] || return 0
+            comparison=$(mktemp)
+            if ! gh api "repos/${GH_REPO}/compare/${base}...${head}" > "$comparison"; then
+              rm -f "$comparison"
+              return 1
+            fi
+            # A behind comparison does not reliably include its changed files.
+            # Always inspect the complete forward comparison instead.
+            if [[ "$(jq -r .status "$comparison")" == behind ]]; then
+              if ! gh api "repos/${GH_REPO}/compare/${head}...${base}" > "$comparison"; then
+                rm -f "$comparison"
+                return 1
+              fi
+            fi
             if ! jq -e '
               (.status == "ahead" or .status == "identical") and .behind_by == 0 and
               (.files | type == "array" and length < 300) and
               all(.files[];
                 (.filename | startswith(".github/workflows/")) and
                 ((.previous_filename // .filename) | startswith(".github/workflows/")))
-            ' source-comparison.json > /dev/null; then
-              printf 'Main %s differs from qualified source %s beyond safe workflow-only changes; refusing publication.\n' \
-                "$current_main" "$SOURCE_SHA" >&2
-              exit 1
+            ' "$comparison" > /dev/null; then
+              rm -f "$comparison"
+              return 1
             fi
+            rm -f "$comparison"
+          }
+
+          current_main=$(gh api "repos/${GH_REPO}/git/ref/heads/main" --jq '.object.sha')
+          if ! workflow_only_difference "$SOURCE_SHA" "$current_main"; then
+            printf 'Main %s differs from qualified source %s beyond safe workflow-only changes; refusing publication.\n' \
+              "$current_main" "$SOURCE_SHA" >&2
+            exit 1
           fi
+          # GitHub can require workflows:write to tag an older workflow snapshot.
+          # Current main is permitted only after every product file is proven
+          # unchanged. Artifacts and native source metadata remain qualified.
+          tag_source_sha=$current_main
 
           tag_exists=false
           tag_sha=
@@ -279,44 +304,30 @@ jobs:
             fi
 
             if [[ "$tag_sha" != "$SOURCE_SHA" ]]; then
-              if [[ "$RECOVERY_MODE" == true ]]; then
-                printf 'Recovery tag %s must point to exact qualified source %s, but points to %s.\n' \
-                  "$tag" "$SOURCE_SHA" "$tag_sha" >&2
-                exit 1
-              fi
-              mapfile -t comparison < <(
-                gh api "repos/${GH_REPO}/compare/${tag_sha}...${SOURCE_SHA}" \
-                  --jq '(.files | length | tostring), (.files[].filename)'
-              )
-              test "${#comparison[@]}" -ge 1
-              changed_file_count="${comparison[0]}"
-              [[ "$changed_file_count" =~ ^[0-9]+$ ]]
-              if ((changed_file_count >= 300)); then
-                printf 'Version %s comparison reached GitHub file limits; refusing ambiguous same-version reuse.\n' \
-                  "$version" >&2
-                exit 1
-              fi
-
-              product_change=false
-              for changed_path in "${comparison[@]:1}"; do
-                case "$changed_path" in
-                  .github/workflows/*) ;;
-                  *) product_change=true ;;
-                esac
-              done
-
-              if [[ "$product_change" == true ]]; then
+              if ! workflow_only_difference "$SOURCE_SHA" "$tag_sha"; then
                 printf 'Version %s is already tagged at %s, but qualified main %s changes product or build source; advance support/VERSION.\n' \
                   "$version" "$tag_sha" "$SOURCE_SHA" >&2
                 exit 1
               fi
-
-              printf 'Version %s is already tagged at %s; qualified main %s changes workflows only, so there is no new release intent.\n' \
-                "$version" "$tag_sha" "$SOURCE_SHA"
-              exit 0
+              if [[ "$RECOVERY_MODE" != true ]]; then
+                printf 'Version %s is already tagged at %s; qualified main %s changes workflows only, so there is no new release intent.\n' \
+                  "$version" "$tag_sha" "$SOURCE_SHA"
+                exit 0
+              fi
             fi
+            # Preserve an existing tag, including a product-equivalent snapshot.
+            tag_source_sha=$tag_sha
             tag_exists=true
           fi
+
+          {
+            printf 'Slicer %s fixes Linux package naming, removes account login, bundles the MB interface fonts, and clarifies printer/material profile updates.\n\n' "$version"
+            printf 'The Linux DEB, native source installer and Windows installer passed platform qualification. The Linux interface also passed a graphical startup check.\n\n'
+            printf 'Qualified release source: %s\n\nRelease tag source: %s\n' "$SOURCE_SHA" "$tag_source_sha"
+            if [[ "$tag_source_sha" != "$SOURCE_SHA" ]]; then
+              printf '\nOnly GitHub workflow files differ between these source snapshots. Published installers are the exact qualified bytes; the native installer downloads the pinned qualified source.\n'
+            fi
+          } > release-notes.md
 
           expected_assets=$(printf '%s\n' "${assets[@]}" | sort)
 
@@ -350,13 +361,18 @@ jobs:
               draft_exists=true
               if [[ "$tag_exists" != true ]]; then
                 draft_target=$(gh release view "$tag" --json targetCommitish --jq '.targetCommitish')
-                if [[ "$draft_target" != "$SOURCE_SHA" ]]; then
-                  printf 'Draft %s targets %s instead of qualified source %s.\n' \
-                    "$tag" "$draft_target" "$SOURCE_SHA" >&2
-                  exit 1
+                if [[ "$draft_target" != "$tag_source_sha" ]]; then
+                  if [[ "$draft_target" == "$SOURCE_SHA" ]]; then
+                    gh release edit "$tag" --target "$tag_source_sha"
+                  else
+                    printf 'Draft %s targets unexpected source %s.\n' \
+                      "$tag" "$draft_target" >&2
+                    exit 1
+                  fi
                 fi
               fi
               echo "Restoring interrupted draft $tag from sealed qualified assets."
+              gh release edit "$tag" --notes-file release-notes.md
               gh release upload "$tag" "${asset_paths[@]}" --clobber
             else
               test "$tag_exists" = true
@@ -372,13 +388,13 @@ jobs:
                 --verify-tag \
                 --draft \
                 --title "Slicer $version" \
-                --notes "Verified Slicer ${version} release."
+                --notes-file release-notes.md
             else
               gh release create "$tag" "${asset_paths[@]}" \
-                --target "$SOURCE_SHA" \
+                --target "$tag_source_sha" \
                 --draft \
                 --title "Slicer $version" \
-                --notes "Verified Slicer ${version} release."
+                --notes-file release-notes.md
             fi
           fi
 
@@ -389,5 +405,5 @@ jobs:
             gh api "repos/${GH_REPO}/git/ref/tags/${tag}" --jq '"\(.object.type) \(.object.sha)"'
           )
           test "$published_tag_type" = commit
-          test "$published_tag_sha" = "$SOURCE_SHA"
+          test "$published_tag_sha" = "$tag_source_sha"
           verify_release_bytes
