@@ -1,0 +1,106 @@
+name: Verify packaged GUI startup
+
+on:
+  workflow_dispatch:
+    inputs:
+      verify_run_id:
+        description: Verify run containing the qualified Linux package
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  gui:
+    name: Open the exact packaged Linux application
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Verify candidate provenance
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFY_RUN: ${{ inputs.verify_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERIFY_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFY_RUN" > run.json
+          jq -e --arg repo "$GITHUB_REPOSITORY" '
+            .head_repository.full_name == $repo and .head_branch == "main" and
+            .path == ".github/workflows/ci.yml" and
+            (.event == "push" or .event == "workflow_dispatch")
+          ' run.json >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFY_RUN/jobs?per_page=100" > jobs.json
+          jq -e '[.jobs[] | select(.name == "Verify release contract" or .name == "Build and qualify Linux .deb")] |
+            length == 2 and all(.[]; .conclusion == "success")' jobs.json >/dev/null
+          echo "sha=$(jq -r .head_sha run.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out matching verification tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ steps.candidate.outputs.sha }}
+
+      - name: Download qualified Linux package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: slicer-linux-release
+          path: candidate
+          run-id: ${{ inputs.verify_run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Install candidate in disposable runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < support/VERSION)
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          deb="candidate/dist/slicer_${version}_amd64.deb"
+          test "$(dpkg-deb -f "$deb" Package)" = slicer
+          test "$(dpkg-deb -f "$deb" Version)" = "$version"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth x11-utils imagemagick "./$deb"
+          python3 support/verify-fonts.py /usr/share/InfiltratorSlicer/fonts
+
+      - name: Open fresh interface and capture screen
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p gui-proof
+          xvfb-run -a -s '-screen 0 1600x1000x24' bash <<'GUI'
+          set -euo pipefail
+          version=$(tr -d '[:space:]' < support/VERSION)
+          slicer --datadir "$RUNNER_TEMP/slicer-gui-data" > gui-proof/startup.log 2>&1 &
+          app_pid=$!
+          trap 'kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
+          opened=false
+          for attempt in {1..60}; do
+            kill -0 "$app_pid" || { cat gui-proof/startup.log; exit 1; }
+            xwininfo -root -tree > gui-proof/windows.txt
+            if grep -E '"[^"]*Slicer[^"[:space:]]*-'"${version//./\\.}" gui-proof/windows.txt; then
+              opened=true
+              break
+            fi
+            sleep 1
+          done
+          test "$opened" = true
+          sleep 5
+          kill -0 "$app_pid"
+          if grep -E 'Cannot load bundled MB font|Could not load bundled MB font|requires wxWidgets private-font support' gui-proof/startup.log; then
+            exit 1
+          fi
+          import -window root gui-proof/startup.png
+          GUI
+
+      - name: Upload startup evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: slicer-gui-startup
+          path: gui-proof
+          if-no-files-found: warn
+          retention-days: 14
