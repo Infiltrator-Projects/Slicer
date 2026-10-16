@@ -85,7 +85,7 @@ source_dir="$build_dir/source"
 build_root="$build_dir/build"
 stage="$build_dir/stage"
 packages="$build_dir/packages"
-artifact="$packages/infiltrator-slicer_${VERSION}_amd64.deb"
+artifact="$packages/slicer_${VERSION}_amd64.deb"
 prerequisites=(ca-certificates curl gzip tar autoconf automake build-essential cmake dpkg-dev git python3 perl pkg-config
     libdbus-1-dev libglu1-mesa-dev libgtk-3-dev libhidapi-dev libwebkit2gtk-4.1-dev
     texinfo xauth xvfb)
@@ -190,21 +190,21 @@ printf 'Compiling the downloaded Slicer source (%s profile)...\n' "$profile"
 metadata_dir="$build_dir/package-meta"
 mkdir -p "$metadata_dir/debian" "$packages" "$stage/DEBIAN"
 cat > "$metadata_dir/debian/control" <<EOF
-Source: infiltrator-slicer
+Source: slicer
 Section: graphics
 Priority: optional
 Maintainer: Infiltrator Projects
 
-Package: infiltrator-slicer
+Package: slicer
 Architecture: amd64
-Description: Infiltrator Slicer
+Description: Slicer
  Slicer converts 3D models into printer toolpaths and G-code.
 EOF
 depends=$(cd "$metadata_dir"; dpkg-shlibdeps -O -e"$stage/usr/bin/slicer" | sed -n 's/^shlibs:Depends=//p')
 [[ -n "$depends" ]] || fail "dpkg-shlibdeps produced no runtime dependency set"
 installed_size=$(du -sk "$stage" | awk '{print $1}')
 cat > "$stage/DEBIAN/control" <<EOF
-Package: infiltrator-slicer
+Package: slicer
 Version: $VERSION
 Section: graphics
 Priority: optional
@@ -212,17 +212,18 @@ Architecture: amd64
 Maintainer: Infiltrator Projects
 Homepage: https://github.com/Infiltrator-Projects/Slicer
 Depends: $depends
-Conflicts: prusa-slicer
-Replaces: prusa-slicer
+Conflicts: prusa-slicer, infiltrator-slicer
+Replaces: prusa-slicer, infiltrator-slicer
+Provides: infiltrator-slicer (= $VERSION)
 Installed-Size: $installed_size
 X-Slicer-Build-Profile: $profile
 X-Slicer-Source-SHA: $SOURCE_SHA
-Description: Infiltrator Slicer (locally compiled for this CPU)
+Description: Slicer
  Slicer converts 3D models into printer toolpaths and G-code.
  This package uses hardware-specific optimisation for the local computer.
 EOF
 dpkg-deb --root-owner-group --build "$stage" "$artifact"
-[[ "$(dpkg-deb -f "$artifact" Package)" == infiltrator-slicer ]] || fail "incorrect native package name"
+[[ "$(dpkg-deb -f "$artifact" Package)" == slicer ]] || fail "incorrect native package name"
 [[ "$(dpkg-deb -f "$artifact" Version)" == "$VERSION" ]] || fail "incorrect native package version"
 [[ "$(dpkg-deb -f "$artifact" Architecture)" == amd64 ]] || fail "incorrect native package architecture"
 printf 'Native package built: %s\n' "$artifact"

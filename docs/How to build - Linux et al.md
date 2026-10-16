@@ -31,7 +31,7 @@ Install the exact package produced by that checkout:
 
 ```sh
 version=$(tr -d '[:space:]' < support/VERSION)
-sudo apt install "./dist/infiltrator-slicer_${version}_amd64.deb"
+sudo apt install "./dist/slicer_${version}_amd64.deb"
 ```
 
 Open **Slicer** from the application menu. Build and test evidence applies to the exact source revision and package bytes.
@@ -50,7 +50,7 @@ support/build-native.sh --profile aggressive --jobs 4
 The downloaded native installer bundles the exact source and pinned archives. Replace `<version>` with the version in the downloaded asset's filename:
 
 ```sh
-bash "infiltrator-slicer-<version>-native-installer.run" --profile native --jobs 4
+bash "slicer-<version>-native-installer.run" --profile native --jobs 4
 ```
 
 The installer builds unprivileged, tests, packages the staged application and requests administrative access for final installation. It lists missing host development packages; `--install-prerequisites` explicitly permits their installation. Use `--no-install` to retain the DEB without installing it, `--dry-run` to inspect the plan, or `--download-only DIR` to inspect the source.

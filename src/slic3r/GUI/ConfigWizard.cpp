@@ -11,6 +11,7 @@
 
 #include "ConfigWizard_private.hpp"
 #include "ConfigWizardWebViewPage.hpp"
+#include "ProductFeatures.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -1495,30 +1496,23 @@ PageCustom::PageCustom(ConfigWizard *parent)
 }
 
 PageUpdate::PageUpdate(ConfigWizard *parent)
-    : ConfigWizardPage(parent, _L("Automatic updates"), _L("Updates"))
-    , version_check(true)
+    : ConfigWizardPage(parent, _L("Application and profile updates"), _L("Updates"))
     , preset_update(true)
 {
     const AppConfig *app_config = wxGetApp().app_config;
     auto boldfont = wxGetApp().bold_font();
 
-    auto *box_slic3r = new wxCheckBox(this, wxID_ANY, _L("Check for application updates"));
-    box_slic3r->SetValue(app_config->get("notify_release") != "none");
-    append(box_slic3r);
-    append_text(wxString::Format(_L(
-        "If enabled, %s checks for new application versions online. When a new version becomes available, "
-         "a notification is displayed at the next application startup (never during program usage). "
-         "This is only a notification mechanisms, no automatic installation is done."), SLIC3R_APP_NAME));
-
+    append_text(_L("Slicer application updates are supplied by your package manager or Slicer releases. "
+                   "This wizard does not download or install application updates."));
     append_spacer(VERTICAL_SPACING);
 
-    auto *box_presets = new wxCheckBox(this, wxID_ANY, _L("Update built-in Presets automatically"));
+    auto *box_presets = new wxCheckBox(this, wxID_ANY, _L("Check for printer and material profile updates"));
     box_presets->SetValue(app_config->get_bool("preset_update"));
     append(box_presets);
     append_text(wxString::Format(_L(
-        "If enabled, %s downloads updates of built-in system presets in the background."
-        "These updates are downloaded into a separate temporary location."
-        "When a new preset version becomes available it is offered at application startup."), SLIC3R_APP_NAME));
+        "If enabled, %s downloads printer and material profile updates in the background. "
+        "These files contain profile settings, not application installers. "
+        "Updates are stored separately and offered at application startup."), SLIC3R_APP_NAME));
     const auto text_bold = _L("Updates are never applied without user's consent and never overwrite user's customized settings.");
     auto *label_bold = new wxStaticText(this, wxID_ANY, text_bold);
     label_bold->SetFont(boldfont);
@@ -1526,7 +1520,6 @@ PageUpdate::PageUpdate(ConfigWizard *parent)
     append(label_bold);
     append_text(_L("Additionally a backup snapshot of the whole configuration is created before an update is applied."));
 
-    box_slic3r->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &event) { this->version_check = event.IsChecked(); });
     box_presets->Bind(wxEVT_CHECKBOX, [this](wxCommandEvent &event) { this->preset_update = event.IsChecked(); });
 }
 
@@ -1625,7 +1618,7 @@ PageDownloader::PageDownloader(ConfigWizard* parent)
     : ConfigWizardPage(parent, _L("Downloads from URL"), _L("Downloads"))
 {
     const AppConfig* app_config = wxGetApp().app_config;
-    auto boldfont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+    auto boldfont = wxGetApp().bold_font();
     boldfont.SetWeight(wxFONTWEIGHT_BOLD);
 
     append_spacer(VERTICAL_SPACING);
@@ -1885,7 +1878,7 @@ PageVendors::PageVendors(ConfigWizard* parent, std::string repo_id /*= wxEmptySt
 
     append_text(wxString::Format(_L("Pick another vendor supported by %s"), SLIC3R_APP_NAME) + ":");
 
-    auto boldfont = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+    auto boldfont = wxGetApp().bold_font();
     boldfont.SetWeight(wxFONTWEIGHT_BOLD);
     // Copy vendors from bundle map to vector, so we can sort it without case sensitivity
     std::vector<std::pair<std::wstring, const VendorProfile*>> vendors;
@@ -2571,7 +2564,8 @@ void ConfigWizard::priv::load_pages()
     index->clear();
 
     index->add_page(page_welcome);
-    index->add_page(page_login);
+    if (page_login)
+        index->add_page(page_login);
     index->add_page(page_update_manager);
 
     if (is_config_from_archive) {
@@ -3587,7 +3581,7 @@ bool ConfigWizard::priv::apply_config(AppConfig *app_config, PresetBundle *prese
 
     app_config->set_vendors(appconfig_new);
 
-    app_config->set("notify_release", page_update->version_check ? "all" : "none");
+    app_config->set("notify_release", "none");
     app_config->set("preset_update", page_update->preset_update ? "1" : "0");
     app_config->set("export_sources_full_pathnames", page_reload_from_disk->full_pathnames ? "1" : "0");
 
@@ -3986,7 +3980,8 @@ ConfigWizard::ConfigWizard(wxWindow *parent)
     wxGetApp().SetWindowVariantForButton(p->btn_cancel);
 
     p->add_page(p->page_welcome = new PageWelcome(this));
-    p->add_page(p->page_login = new ConfigWizardWebViewPage(this));
+    if constexpr (ProductFeatures::cloud_accounts)
+        p->add_page(p->page_login = new ConfigWizardWebViewPage(this));
     p->add_page(p->page_update_manager = new PageUpdateManager(this));
 
     // other pages will be loaded later after confirm repositories selection

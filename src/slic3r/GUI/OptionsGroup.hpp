@@ -23,6 +23,7 @@
 
 #include "Field.hpp"
 #include "I18N.hpp"
+#include "ProductTypography.hpp"
 
 // Translate the ifdef 
 #ifdef __WXOSX__
@@ -137,8 +138,8 @@ public:
 
     std::function<void(const t_config_option_key& opt_key)> edit_custom_gcode { nullptr };
     
-    wxFont			sidetext_font {wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT) };
-    wxFont			label_font {wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT) };
+    wxFont			sidetext_font {ProductTypography::ui_font() };
+    wxFont			label_font {ProductTypography::ui_font() };
 	int				sidetext_width{ -1 };
 	int				sublabel_width{ -1 };
 

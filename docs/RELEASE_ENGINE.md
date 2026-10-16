@@ -1,4 +1,4 @@
-# Infiltrator Slicer release engineering
+# Slicer release engineering
 
 Slicer owns its build and release machinery in this repository. [support/VERSION](../support/VERSION) is the sole product release authority. Profile and file-format compatibility versions remain separate from the product version.
 
@@ -8,8 +8,8 @@ A successful `Verify` workflow is the sole producer and qualifier of release
 binaries and the local source installer. It creates exactly three distributable assets:
 
 - `slicer-<version>-windows.exe` — Windows x64 installer.
-- `infiltrator-slicer_<version>_amd64.deb` — Debian/Ubuntu amd64 package.
-- `infiltrator-slicer-<version>-native-installer.run` — Linux amd64 source installer with native and aggressive CPU compilation modes.
+- `slicer_<version>_amd64.deb` — Debian/Ubuntu amd64 package.
+- `slicer-<version>-native-installer.run` — Linux amd64 source installer with native and aggressive CPU compilation modes.
 
 GitHub supplies the source `.zip` and `.tar.gz` automatically from the release
 tag. The small `.run` downloads the archive for that exact release commit over HTTPS, including its pinned dependency archives, then compiles and installs on the target machine. It contains no embedded source archive. Vendor hashes are verified before compilation.
@@ -53,7 +53,7 @@ Examples:
 support/build-native.sh --profile native
 support/build-native.sh --profile aggressive
 # Or download the release source, compile and install:
-bash infiltrator-slicer-<version>-native-installer.run --profile aggressive
+bash slicer-<version>-native-installer.run --profile aggressive
 ```
 
 `native` uses `-O2` and compiler-probed host CPU tuning (`-march=native` and
@@ -91,7 +91,7 @@ build-only import libraries are excluded.
 The Debian candidate is built from the repository's static dependency bundle
 with FHS installation enabled. Runtime library dependencies are derived from
 the actual built executable with `dpkg-shlibdeps`, then the staged tree is
-packed as `infiltrator-slicer`.
+packed as `slicer`.
 
 The desktop entry, product icons, metadata, and resource directory use Infiltrator identity. `slicer` is the canonical launcher. The retained `prusa-slicer` compatibility command overlaps the upstream package, so the Debian package declares a conflict/replacement relationship with `prusa-slicer`. Product versions and upstream profile compatibility versions must not be conflated.
 

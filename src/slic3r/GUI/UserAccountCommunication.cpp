@@ -1,4 +1,5 @@
 #include "UserAccountCommunication.hpp"
+#include "ProductFeatures.hpp"
 #include "GUI_App.hpp"
 #include "GUI.hpp"
 #include "format.hpp"
@@ -251,6 +252,11 @@ UserAccountCommunication::UserAccountCommunication(wxEvtHandler* evt_handler, Ap
     Bind(wxEVT_TIMER, &UserAccountCommunication::on_slave_read_timer, this, m_slave_read_timer->GetId());
     Bind(wxEVT_TIMER, &UserAccountCommunication::on_after_race_lost_timer, this, m_after_race_lost_timer->GetId());
 
+    if constexpr (!ProductFeatures::cloud_accounts) {
+        m_session = std::make_unique<UserAccountSession>(evt_handler, "", "", "", 0, false);
+        return;
+    }
+
     StoreData stored_data;
     read_stored_data(stored_data);
 
@@ -435,6 +441,8 @@ bool UserAccountCommunication::is_logged() const
 }
 void UserAccountCommunication::do_login()
 {
+    if constexpr (!ProductFeatures::cloud_accounts)
+        return;
     if (!m_session->is_initialized()) {
         login_redirect();
     } else { 
@@ -461,6 +469,8 @@ void UserAccountCommunication::do_clear()
 
 void UserAccountCommunication::on_login_code_recieved(const std::string& url_message)
 {
+    if constexpr (!ProductFeatures::cloud_accounts)
+        return;
     const std::string code = get_code_from_message(url_message);
     m_session->init_with_code(code, m_code_verifier);
     wakeup_session_thread();
@@ -597,6 +607,8 @@ void UserAccountCommunication::init_session_thread()
 
 void UserAccountCommunication::on_activate_app(bool active)
 {
+    if constexpr (!ProductFeatures::cloud_accounts)
+        return;
     {
         std::lock_guard<std::mutex> lck(m_thread_stop_mutex);
         m_window_is_active = active;
@@ -861,6 +873,8 @@ void UserAccountCommunication::set_tokens(const StoreData store_data)
 
 void UserAccountCommunication::on_store_read_request()
 {
+    if constexpr (!ProductFeatures::cloud_accounts)
+        return;
     BOOST_LOG_TRIVIAL(debug) << __FUNCTION__;
     StoreData stored_data;
     read_stored_data(stored_data);

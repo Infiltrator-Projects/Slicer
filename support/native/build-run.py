@@ -35,7 +35,7 @@ def build(repository, source_ref, output_directory):
         raise ValueError("bootstrap template contains an unresolved release value")
     output_directory = Path(output_directory).resolve()
     output_directory.mkdir(parents=True, exist_ok=True)
-    artifact = output_directory / ("infiltrator-slicer-" + version + "-native-installer.run")
+    artifact = output_directory / ("slicer-" + version + "-native-installer.run")
     candidate = artifact.with_name(artifact.name + ".tmp")
     try:
         candidate.write_bytes(template.encode())

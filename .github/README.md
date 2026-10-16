@@ -42,9 +42,9 @@ Development stays on `main`. `support/VERSION` is the sole release-intent source
 
 A published release contains three assets from the same tested source revision:
 
-- `infiltrator-slicer_<version>_amd64.deb` — Debian/Ubuntu amd64 package.
+- `slicer_<version>_amd64.deb` — Debian/Ubuntu amd64 package.
 - `slicer-<version>-windows.exe` — Windows x64 installer.
-- `infiltrator-slicer-<version>-native-installer.run` — Linux amd64 installer with the application source and pinned dependency archives for local CPU compilation.
+- `slicer-<version>-native-installer.run` — Linux amd64 installer that downloads the exact release source and compiles it locally.
 
 Install the package for your platform and open **Slicer** from the application menu. Linux packages are also available through the [Infiltrator package repository](https://github.com/Infiltrator-Projects/Infiltrator-Repository). The small native `.run` downloads the exact release source and its pinned dependency archives, then compiles and installs on the target machine. It supports `native` and `aggressive` build profiles; its usage and installation options are documented in [Release engineering](../docs/RELEASE_ENGINE.md).
 

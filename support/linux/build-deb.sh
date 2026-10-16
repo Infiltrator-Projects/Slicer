@@ -128,7 +128,7 @@ deps_prefix="$deps_build/destdir/usr/local"
 app_build="$build_base/app"
 stage="$build_base/stage"
 metadata="$build_base/package-meta"
-artifact="$output/infiltrator-slicer_${version}_amd64.deb"
+artifact="$output/slicer_${version}_amd64.deb"
 
 rm -rf "$stage" "$metadata"
 mkdir -p "$output"
@@ -174,15 +174,15 @@ DESTDIR="$stage" cmake --install "$app_build"
 
 mkdir -p "$metadata/debian"
 cat > "$metadata/debian/control" <<EOF
-Source: infiltrator-slicer
+Source: slicer
 Section: graphics
 Priority: optional
 Maintainer: Infiltrator Projects
 Standards-Version: 4.7.0
 
-Package: infiltrator-slicer
+Package: slicer
 Architecture: amd64
-Description: Infiltrator Slicer
+Description: Slicer
  Slicer converts 3D models into printer toolpaths and G-code.
 EOF
 
@@ -196,7 +196,7 @@ depends=$(
 mkdir -p "$stage/DEBIAN"
 installed_size=$(du -sk "$stage" | awk '{print $1}')
 cat > "$stage/DEBIAN/control" <<EOF
-Package: infiltrator-slicer
+Package: slicer
 Version: $version
 Section: graphics
 Priority: optional
@@ -204,17 +204,18 @@ Architecture: amd64
 Maintainer: Infiltrator Projects
 Homepage: https://github.com/Infiltrator-Projects/Slicer
 Depends: $depends
-Conflicts: prusa-slicer
-Replaces: prusa-slicer
+Conflicts: prusa-slicer, infiltrator-slicer
+Replaces: prusa-slicer, infiltrator-slicer
+Provides: infiltrator-slicer (= $version)
 Installed-Size: $installed_size
-Description: Infiltrator Slicer
+Description: Slicer
  Slicer converts 3D models into printer toolpaths and G-code.
 EOF
 
 rm -f "$artifact"
 dpkg-deb --root-owner-group --build "$stage" "$artifact"
 
-test "$(dpkg-deb -f "$artifact" Package)" = infiltrator-slicer
+test "$(dpkg-deb -f "$artifact" Package)" = slicer
 test "$(dpkg-deb -f "$artifact" Version)" = "$version"
 test "$(dpkg-deb -f "$artifact" Architecture)" = amd64
 dpkg-deb --contents "$artifact" >/dev/null

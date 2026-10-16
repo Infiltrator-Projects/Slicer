@@ -1,0 +1,28 @@
+{
+  "source_repository": "Infiltrator-Projects/ssmithnet.net",
+  "source_commit": "c6a07ec199383487244443ccde05110874c4116c",
+  "conversion": "WOFF2 decompression to native SFNT; font names, outlines and metrics are unchanged.",
+  "fonts": [
+    {
+      "file": "mb-corpo-a-cond-regular.ttf",
+      "family": "MB Corpo A Title Cond WEB",
+      "source_file": "assets/fonts/mb-corpo-a-cond-regular.woff2",
+      "source_sha256": "f78011684772cea4999e83b4dc7c25b8776842516bc6ef5d30009debe23bdc99",
+      "sha256": "32f1bd0517b533e6a6ed3bcf59fd77512b2ace0b4a03174778e98a2f17c42bcd"
+    },
+    {
+      "file": "mb-corpo-s-bold.ttf",
+      "family": "MB Corpo S Title WEB",
+      "source_file": "assets/fonts/mb-corpo-s-bold.woff2",
+      "source_sha256": "02c1187efc6588ad649d008328073b11ab4af8811b1800408ae81ab3bbe464ee",
+      "sha256": "28a4dff6e845ac061f07e0a61e68175d4223af7892a3406e317e9e858e661ece"
+    },
+    {
+      "file": "mb-corpo-s-regular.ttf",
+      "family": "MB Corpo S Title WEB",
+      "source_file": "assets/fonts/mb-corpo-s-regular.woff2",
+      "source_sha256": "0bcc326ae3984deb3406569920bc31037ffa3624ca88f34afc19b85a47efed25",
+      "sha256": "7ba976b5c7665ad0cf3bd37645922e1cc16ce113f70b293bbb70fe9946ac2724"
+    }
+  ]
+}

@@ -8,6 +8,8 @@
 ///|/
 #include "libslic3r/Technologies.hpp"
 #include "GUI_App.hpp"
+#include "ProductFeatures.hpp"
+#include "ProductTypography.hpp"
 #include "GUI_Init.hpp" // IWYU pragma: keep
 #include "GUI_ObjectList.hpp"
 #include "GUI_ObjectManipulation.hpp"
@@ -1961,18 +1963,30 @@ int GUI_App::get_max_font_pt_size()
 
 void GUI_App::init_fonts()
 {
-    m_small_font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
-    m_bold_font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT).Bold();
-    m_normal_font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+#if wxUSE_PRIVATE_FONTS
+    for (const char* file : {"mb-corpo-s-regular.ttf", "mb-corpo-s-bold.ttf", "mb-corpo-a-cond-regular.ttf"}) {
+        const std::string path = Slic3r::resources_dir() + "/fonts/" + file;
+        if (!wxFont::AddPrivateFont(from_u8(path)))
+            throw Slic3r::RuntimeError("Cannot load bundled MB font: " + path);
+    }
+#else
+    throw Slic3r::RuntimeError("Slicer requires wxWidgets private-font support.");
+#endif
+    m_normal_font = ProductTypography::ui_font();
+    m_small_font = m_normal_font;
+    m_bold_font = m_normal_font.Bold();
+#ifdef __WXGTK__
+    const wxString description = wxString::FromUTF8(ProductTypography::ui_family) +
+        wxString::Format(" %d", m_normal_font.GetPointSize());
+    g_object_set(gtk_settings_get_default(), "gtk-font-name", description.utf8_str().data(), nullptr);
+#endif
 
 #ifdef __WXMAC__
     m_small_font.SetPointSize(11);
     m_bold_font.SetPointSize(13);
 #endif /*__WXMAC__*/
 
-    // wxSYS_OEM_FIXED_FONT and wxSYS_ANSI_FIXED_FONT use the same as
-    // DEFAULT in wxGtk. Use the TELETYPE family as a work-around
-    m_code_font = wxFont(wxFontInfo().Family(wxFONTFAMILY_TELETYPE));
+    m_code_font = m_normal_font;
     m_code_font.SetPointSize(m_normal_font.GetPointSize());
 }
 
@@ -3685,6 +3699,8 @@ bool GUI_App::open_browser_with_warning_dialog(const wxString& url, wxWindow* pa
 
 bool GUI_App::open_login_browser_with_dialog(const wxString& url, wxWindow* parent/* = nullptr*/, int flags/* = 0*/)
 {
+    if constexpr (!ProductFeatures::cloud_accounts)
+        return false;
     bool auth_login_dialog_confirmed = app_config->get_bool("auth_login_dialog_confirmed");
     if (!auth_login_dialog_confirmed) {
         RichMessageDialog dialog(parent, _L("Open default browser with Prusa Account Log in page?\n(If you select 'Yes', you will not be asked again.)"), _L("Slicer: Open Log in page"), wxICON_QUESTION | wxYES_NO);

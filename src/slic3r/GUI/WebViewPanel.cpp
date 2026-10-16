@@ -1659,7 +1659,7 @@ void PrintablesWebViewPanel::define_css()
                 padding: 10px;
                 border-radius: 6px; /* Slightly rounded corners */
                 color: #ffffff; /* White text */
-                font-family: Arial, sans-serif;
+                font-family: 'MB Corpo S Title WEB';
                 font-size: 12px;
                 display: flex;
                 justify-content: space-between;

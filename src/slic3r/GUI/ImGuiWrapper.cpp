@@ -4,6 +4,7 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "ImGuiWrapper.hpp"
+#include "ProductTypography.hpp"
 
 #include <cstdio>
 #include <vector>
@@ -1169,21 +1170,10 @@ void ImGuiWrapper::init_font(bool compress)
 #endif
 	builder.BuildRanges(&ranges); // Build the final result (ordered ranges with all the unique characters submitted)
 
-    //FIXME replace with io.Fonts->AddFontFromMemoryTTF(buf_decompressed_data, (int)buf_decompressed_size, m_font_size, nullptr, ranges.Data);
-    //https://github.com/ocornut/imgui/issues/220
-    ImFont* font = io.Fonts->AddFontFromFileTTF((Slic3r::resources_dir() + "/fonts/" + "NotoSans-Regular.ttf").c_str(), m_font_size, nullptr, ranges.Data);
-    if (s_font_cjk) {
-        ImFontConfig config;
-        config.MergeMode = true;
-        io.Fonts->AddFontFromFileTTF((Slic3r::resources_dir() + "/fonts/" + "NotoSansCJK-Regular.ttc").c_str(), m_font_size, &config, ranges.Data);
-    }
-    
-    if (font == nullptr) {
-        font = io.Fonts->AddFontDefault();
-        if (font == nullptr) {
-            throw Slic3r::RuntimeError("ImGui: Could not load deafult font");
-        }
-    }
+    const std::string font_path = Slic3r::resources_dir() + "/fonts/" + ProductTypography::regular_file;
+    ImFont* font = io.Fonts->AddFontFromFileTTF(font_path.c_str(), m_font_size, nullptr, ranges.Data);
+    if (font == nullptr)
+        throw Slic3r::RuntimeError("ImGui: Could not load bundled MB font");
 
     float font_scale = m_font_size/15;
     int icon_sz = lround(16 * font_scale); // default size of icon is 16 px

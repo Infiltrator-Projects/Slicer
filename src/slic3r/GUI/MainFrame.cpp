@@ -66,6 +66,7 @@
 #include "Preferences.hpp"
 #include "WebViewPanel.hpp"
 #include "UserAccount.hpp"
+#include "ProductFeatures.hpp"
 
 #ifdef _WIN32
 #include <dbt.h>
@@ -595,8 +596,6 @@ void MainFrame::update_title()
     }
 
     title += wxString(build_id);
-    if (wxGetApp().is_editor())
-        title += (" " + _L("based on Slic3r"));
 
     SetTitle(title);
 }
@@ -614,7 +613,8 @@ void MainFrame::update_topbars()
     if (wxGetApp().is_gcode_viewer())
         return;
 
-    const bool show_login = !wxGetApp().app_config->has("show_login_button") || wxGetApp().app_config->get_bool("show_login_button");
+    const bool show_login = ProductFeatures::cloud_accounts &&
+        (!wxGetApp().app_config->has("show_login_button") || wxGetApp().app_config->get_bool("show_login_button"));
     m_tmp_top_bar->ShowUserAccount(show_login);
     m_tabpanel->ShowUserAccount(show_login);
 

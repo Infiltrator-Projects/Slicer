@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a problem with Infiltrator Slicer
+description: Report a problem with Slicer
 body:
   - type: markdown
     attributes:

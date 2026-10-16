@@ -69,6 +69,10 @@ try {
     }
 
     $ConsoleExecutable = Join-Path $InstallDir 'slicer-console.exe'
+    & python "$PSScriptRoot/../verify-fonts.py" (Join-Path $InstallDir 'resources/fonts')
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Installed MB font verification failed.'
+    }
     if (-not (Test-Path -LiteralPath $ConsoleExecutable -PathType Leaf)) {
         throw "Installer did not extract the Slicer console executable."
     }

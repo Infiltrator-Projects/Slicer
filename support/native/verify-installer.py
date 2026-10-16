@@ -131,9 +131,26 @@ else:
         write(tools / "sudo", '#!/usr/bin/env bash\nprintf "unexpected privilege request\\n" >&2\nexit 89\n', executable=True)
         environment = dict(environment, PATH=str(tools) + os.pathsep + os.environ["PATH"])
         run("bash", str(artifact), "--profile", "aggressive", "--jobs", "2", "--build-dir", str(build_dir), "--no-install", env=environment)
-        deb = build_dir / "packages" / f"infiltrator-slicer_{VERSION}_amd64.deb"
-        assert run("dpkg-deb", "-f", str(deb), "Package").strip() == "infiltrator-slicer"
+        deb = build_dir / "packages" / f"slicer_{VERSION}_amd64.deb"
+        assert run("dpkg-deb", "-f", str(deb), "Package").strip() == "slicer"
         assert run("dpkg-deb", "-f", str(deb), "Version").strip() == VERSION
+        assert run("dpkg-deb", "-f", str(deb), "Description").splitlines()[0] == "Slicer"
+        assert run("dpkg-deb", "-f", str(deb), "Provides").strip() == f"infiltrator-slicer (= {VERSION})"
+        assert "infiltrator-slicer" in run("dpkg-deb", "-f", str(deb), "Conflicts")
+        assert "infiltrator-slicer" in run("dpkg-deb", "-f", str(deb), "Replaces")
+        # Resolve both published legacy identities without touching host APT state.
+        for legacy_version in ("0.0.4", "2.9.6"):
+            status = work / ("apt-status-" + legacy_version)
+            status.write_text(Path("/var/lib/dpkg/status").read_text() +
+                              "\nPackage: infiltrator-slicer\nStatus: install ok installed\n"
+                              f"Version: {legacy_version}\nArchitecture: amd64\n"
+                              "Maintainer: Test <test@example.invalid>\nDescription: legacy Slicer\n\n")
+            resolved = run("apt-get", "--simulate", "--no-download",
+                           "-o", "Debug::NoLocking=true", "-o", f"Dir::State::status={status}",
+                           "-o", "Dir::Etc::sourcelist=/dev/null", "-o", "Dir::Etc::sourceparts=-",
+                           "-o", "Dir::Cache::pkgcache=", "-o", "Dir::Cache::srcpkgcache=",
+                           "install", str(deb), env=dict(os.environ, LC_ALL="C"))
+            assert "Remv infiltrator-slicer" in resolved and "Inst slicer " in resolved, resolved
         assert run("dpkg-deb", "-f", str(deb), "X-Slicer-Build-Profile").strip() == "aggressive"
         assert run("dpkg-deb", "-f", str(deb), "X-Slicer-Source-SHA").strip() == sha
         installed = work / "package extract"

@@ -1,4 +1,5 @@
 #include "Label.hpp"
+#include "../ProductTypography.hpp"
 #include "StaticBox.hpp"
 
 #include <wx/settings.h>
@@ -12,11 +13,11 @@ wxFont Label::sysFont(int size, bool bold)
     size = size * 4 / 5;
 #endif
 
-    auto   face = wxString::FromUTF8("HarmonyOS Sans SC");
+    auto   face = wxString::FromUTF8(Slic3r::GUI::ProductTypography::ui_family);
     wxFont font{size, wxFONTFAMILY_SWISS, wxFONTSTYLE_NORMAL, bold ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL, false, face};
     font.SetFaceName(face);
     if (!font.IsOk()) {
-        font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+        font = Slic3r::GUI::ProductTypography::ui_font();
         if (bold) font.MakeBold();
         font.SetPointSize(size);
     }

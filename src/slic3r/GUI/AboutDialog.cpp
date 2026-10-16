@@ -9,6 +9,7 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "AboutDialog.hpp"
+#include "ProductTypography.hpp"
 #include "I18N.hpp"
 
 #include "libslic3r/Utils.hpp"
@@ -246,7 +247,7 @@ AboutDialog::AboutDialog()
     {
         wxStaticText* title = new wxStaticText(this, wxID_ANY, wxGetApp().is_editor() ? SLIC3R_APP_NAME : GCODEVIEWER_APP_NAME, wxDefaultPosition, wxDefaultSize);
         wxFont title_font = GUI::wxGetApp().bold_font();
-        title_font.SetFamily(wxFONTFAMILY_ROMAN);
+        title_font.SetFaceName(wxString::FromUTF8(ProductTypography::title_family));
         title_font.SetPointSize(int(2.5 * title_font.GetPointSize()));//title_font.SetPointSize(24);
         title->SetFont(title_font);
         vsizer->Add(title, 0, wxALIGN_LEFT | wxTOP, 10);

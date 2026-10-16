@@ -150,7 +150,9 @@ void Bed_2D::repaint(const std::vector<Vec2d>& shape)
 
 	static const auto origin_label = wxString("(0,0)");
 	dc.SetTextForeground(wxColour(0, 0, 0));
-    dc.SetFont(wxFont(10, wxFONTFAMILY_DEFAULT, wxFONTSTYLE_NORMAL, wxFONTWEIGHT_NORMAL));
+    wxFont origin_font = wxGetApp().normal_font();
+    origin_font.SetPointSize(10);
+    dc.SetFont(origin_font);
 	auto extent = dc.GetTextExtent(origin_label);
 	const auto origin_label_x = origin_px(0) <= cw / 2 ? origin_px(0) + 1 : origin_px(0) - 1 - extent.GetWidth();
 	const auto origin_label_y = origin_px(1) <= ch / 2 ? origin_px(1) + 1 : origin_px(1) - 1 - extent.GetHeight();

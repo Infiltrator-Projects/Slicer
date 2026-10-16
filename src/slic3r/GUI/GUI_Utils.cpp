@@ -3,6 +3,7 @@
 ///|/ PrusaSlicer is released under the terms of the AGPLv3 or higher
 ///|/
 #include "GUI_Utils.hpp"
+#include "ProductTypography.hpp"
 #include "GUI_App.hpp"
 #include "format.hpp"
 
@@ -144,17 +145,17 @@ wxFont get_default_font_for_dpi(const wxWindow *window, int dpi)
         memset(&nm, 0, sizeof(NONCLIENTMETRICS));
         nm.cbSize = sizeof(NONCLIENTMETRICS);
         if (SystemParametersInfoForDpi_fn(SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &nm, 0, dpi))
-            return wxFont(wxNativeFontInfo(nm.lfMessageFont, window));
+            return ProductTypography::with_ui_face(wxFont(wxNativeFontInfo(nm.lfMessageFont, window)));
     }
     // Then try to guesstimate the font DPI scaling on Windows 8.
     // Let's hope that the font returned by the SystemParametersInfo(), which is used by wxWidgets internally, makes sense.
     int dpi_primary = get_dpi_for_window(nullptr);
     if (dpi_primary != dpi) {
         // Rescale the font.
-        return wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT).Scaled(float(dpi) / float(dpi_primary));
+        return ProductTypography::ui_font().Scaled(float(dpi) / float(dpi_primary));
     }
 #endif
-    return wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
+    return ProductTypography::ui_font();
 }
 
 bool check_dark_mode() {

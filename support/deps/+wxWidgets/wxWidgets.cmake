@@ -59,6 +59,7 @@ add_cmake_project(wxWidgets
         -DwxUSE_UNICODE=ON
         -DwxUSE_UNICODE_UTF8=${_unicode_utf8}
         -DwxUSE_OPENGL=ON
+        -DwxUSE_PRIVATE_FONTS=ON
         -DwxUSE_LIBPNG=sys
         -DwxUSE_ZLIB=sys
         -DwxUSE_NANOSVG=sys
