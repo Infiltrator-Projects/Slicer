@@ -11,13 +11,17 @@ on:
         type: choice
         options: [all, linux, windows]
         default: all
+      qualified_windows_run:
+        description: Optional Verify run to reuse when Windows product sources are unchanged
+        type: string
+        default: ''
 
 permissions:
   contents: read
   actions: read
 
 concurrency:
-  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}-${{ vars.SLICER_REUSE_WINDOWS_RUN || 'normal' }}
+  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}-${{ inputs.qualified_windows_run || vars.SLICER_REUSE_WINDOWS_RUN || 'normal' }}
   cancel-in-progress: true
 
 jobs:
@@ -304,11 +308,11 @@ jobs:
 
       - name: Validate optional qualified Windows candidate reuse
         id: windows-reuse
-        if: vars.SLICER_REUSE_WINDOWS_RUN != ''
+        if: inputs.qualified_windows_run != '' || vars.SLICER_REUSE_WINDOWS_RUN != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          QUALIFIED_RUN: ${{ vars.SLICER_REUSE_WINDOWS_RUN }}
+          QUALIFIED_RUN: ${{ inputs.qualified_windows_run || vars.SLICER_REUSE_WINDOWS_RUN }}
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:QUALIFIED_RUN -notmatch '^[0-9]+$') { throw 'Invalid qualified Windows run ID.' }
@@ -342,7 +346,7 @@ jobs:
               }
               foreach ($File in $Comparison.files) {
                   foreach ($Path in @($File.filename, $File.previous_filename)) {
-                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/|support/tests/slic3rutils/slic3r_jobs_tests\.cpp$)') {
+                      if ($Path -and $Path -cnotmatch '^(support/linux/|\.github/workflows/|support/tests/(slic3rutils/slic3r_jobs_tests|libslic3r/test_(emboss|cut_surface))\.cpp$)') {
                           throw "Windows product/build source changed: $Path"
                       }
                   }
@@ -352,6 +356,8 @@ jobs:
           Assert-WindowsSourcesUnchanged ([pscustomobject]@{ status='ahead'; files=@(
               [pscustomobject]@{ filename='support/linux/build-deb.sh' },
               [pscustomobject]@{ filename='support/tests/slic3rutils/slic3r_jobs_tests.cpp' },
+              [pscustomobject]@{ filename='support/tests/libslic3r/test_emboss.cpp' },
+              [pscustomobject]@{ filename='support/tests/libslic3r/test_cut_surface.cpp' },
               [pscustomobject]@{ filename='.github/workflows/ci.yml' }) })
           foreach ($Unsafe in @(
               [pscustomobject]@{ status='behind'; files=@() },
@@ -372,7 +378,7 @@ jobs:
               "reused=false" >> $env:GITHUB_OUTPUT
               return
           }
-          Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging, the cancellation test, and workflow files changed."
+          Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging, approved test fixtures, and workflow files changed."
           "reused=true" >> $env:GITHUB_OUTPUT
 
       - name: Download qualified Windows candidate for Linux-only recovery

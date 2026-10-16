@@ -7,7 +7,7 @@ using namespace Slic3r;
 TEST_CASE("Cut character from surface", "[Emboss]")
 {
     std::string font_path = std::string(TEST_DATA_DIR) +
-                            "/../../resources/fonts/NotoSans-Regular.ttf";
+                            "/../../resources/fonts/mb-corpo-s-regular.ttf";
     char         letter     = '%';
     float        flatness   = 2.;
     unsigned int font_index = 0;    // collection
@@ -143,7 +143,7 @@ TEST_CASE("CutSurface in 3mf", "[Emboss]")
     /*/  // end use GUI
     // start use fake font
     std::string font_path = std::string(TEST_DATA_DIR) +
-                            "/../../resources/fonts/NotoSans-Regular.ttf";
+                            "/../../resources/fonts/mb-corpo-s-regular.ttf";
     Emboss::FontFileWithCache ff(Emboss::create_font_file(font_path.c_str()));
     // */ // end use fake font
     CHECK(ff.has_value());

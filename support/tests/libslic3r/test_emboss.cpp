@@ -98,7 +98,7 @@ Vec3d calc_hit_point(const igl::Hit &h, indexed_triangle_set &its)
 std::string get_font_filepath() {
     std::string resource_dir = 
         std::string(TEST_DATA_DIR) + "/../../resources/";
-    return resource_dir + "fonts/NotoSans-Regular.ttf";
+    return resource_dir + "fonts/mb-corpo-s-regular.ttf";
 }
 
 // Explicit horror include (used to be implicit) - libslic3r "officialy" does not depend on imgui.
