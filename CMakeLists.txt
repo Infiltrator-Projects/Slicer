@@ -658,3 +658,8 @@ else ()
     install(FILES src/platform/unix/PrusaGcodeviewer.desktop DESTINATION ${CMAKE_INSTALL_PREFIX}/resources/applications)
     install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/resources")
 endif ()
+
+# Preserve the inherited engine licence in every CMake-staged distribution.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE-AGPL-3.0.txt"
+              "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt"
+        DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/infiltrator-slicer")

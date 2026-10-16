@@ -133,7 +133,7 @@ extract_source() {
     mkdir -p -- "$(dirname -- "$destination")"
     extract_temporary=$(mktemp -d "$(dirname -- "$destination")/.slicer-extract.XXXXXX")
     tar -xzf "$payload_file" --no-same-owner -C "$extract_temporary"
-    [[ -f "$extract_temporary/support/VERSION" && -f "$extract_temporary/support/build-native.sh" && -f "$extract_temporary/LICENSE" ]] ||
+    [[ -f "$extract_temporary/support/VERSION" && -f "$extract_temporary/support/build-native.sh" && -f "$extract_temporary/LICENSE-AGPL-3.0.txt" ]] ||
         fail "embedded source is incomplete"
     [[ "$(tr -d '[:space:]' < "$extract_temporary/support/VERSION")" == "$VERSION" ]] || fail "embedded source version mismatch"
     printf '%s\n' "$SOURCE_SHA" > "$extract_temporary/.slicer-source-sha"

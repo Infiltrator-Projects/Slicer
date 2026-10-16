@@ -105,3 +105,7 @@ packed as `infiltrator-slicer`.
 The desktop entry, product icons, metadata, and resource directory use Infiltrator identity. `slicer` is the canonical launcher. The retained `prusa-slicer` compatibility command overlaps the upstream package, so the Debian package declares a conflict/replacement relationship with `prusa-slicer`. Product versions and upstream profile compatibility versions must not be conflated.
 
 Application updates use Infiltrator releases and the Infiltrator APT repository. The inherited PrusaSlicer application updater and startup usage-report prompt are disabled. Printer profile repositories and optional printer/service integrations remain compatibility features with their original provider names.
+
+## Licence material
+
+The inherited engine's AGPL text is retained in LICENSE-AGPL-3.0.txt. The separately maintained LICENSE.txt does not replace that provenance. CMake staging and the Windows installer include both files. The native source installer verifies the inherited licence file after extraction, and its fixture exercises the same filename.
