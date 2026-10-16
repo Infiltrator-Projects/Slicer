@@ -1,14 +1,22 @@
-To build the standalone SLA estimate testing app:
+# SLA time-estimate development tool
 
-git clone https://github.com/prusa3d/PrusaSlicer
+This directory contains a standalone development application for the SLA time-estimate library. It is separate from Slicer's release-qualified desktop packages.
 
-cd PrusaSlicer/deps
-mkdir build && cd build
-cmake ..
-cmake --build . --target dep_json
-cd ../..
+## Build
 
-cd src/sla-time-estimates
-mkdir build && cd build
-cmake .. -DCMAKE_PREFIX_PATH=$(pwd)/../../../deps/build/destdir/usr/local
-cmake --build .
+From the repository root, prepare the pinned JSON dependency and configure the standalone target:
+
+```sh
+cmake -S deps -B build/sla-deps -DCMAKE_BUILD_TYPE=Release
+cmake --build build/sla-deps --target dep_json
+cmake -S src/sla-time-estimates -B build/sla-time-estimates \
+  -DCMAKE_PREFIX_PATH="$PWD/build/sla-deps/destdir/usr/local"
+cmake --build build/sla-time-estimates
+```
+
+The executable target is `sla_time_estimate_app`. Its local [CMakeLists.txt](CMakeLists.txt) owns the C++17 and `nlohmann_json` dependency contract.
+
+## Evidence
+
+A standalone tool run does not qualify the desktop application or establish physical printer timing. Record the input, source revision and observed estimate when using it for development. Follow the repository's [validation boundaries](../../doc/VALIDATION.md).
+

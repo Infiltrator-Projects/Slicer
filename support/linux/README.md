@@ -25,7 +25,7 @@ Use recovery only while the original workspace is idle and no other Verify run i
   cancellation regression test `tests/slic3rutils/slic3r_jobs_tests.cpp`, including rename
   origins. It downloads the original Windows candidate, installs and qualifies
   those exact bytes again, and uploads them into the current qualification run.
-  Any Windows product, resource, dependency or build-helper change rejects reuse.
+  Any Windows product, resource, dependency or build-helper change requires a fresh Windows build instead of candidate reuse.
   A recovery run can wait for an existing Windows qualification to finish;
   its concurrency group keeps that original build running. The cancellation
   test is compiled separately from the packaged Windows application and cannot
@@ -33,4 +33,5 @@ Use recovery only while the original workspace is idle and no other Verify run i
 
 Clear both variables after recovery. Normal runs build Windows using its pinned
 hosted toolchain and dependency cache. Release publication continues to require
-successful source, Linux and Windows qualification jobs from one current run.
+successful source, Linux, Windows and native-installer qualification, followed by sealing of the exact assets from one run.
+

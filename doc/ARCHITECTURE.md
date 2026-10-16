@@ -2,7 +2,7 @@
 
 ## Current implementation and provenance
 
-Slicer owns product identity, distribution and subsequent development over the inherited PrusaSlicer 2.9.6 engine. This is an evolving product architecture, not a claim that all engine code was newly written. resources/licenses/AGPL-3.0.txt and source notices retain the applicable legal attribution.
+Slicer owns product identity, distribution and current development of the desktop application and slicing engine. Existing model, preset and file-format compatibility remains part of the implementation contract. [Engineering philosophy](../PHILOSOPHY.md) governs design and documentation; the project licence is in [LICENSE](../LICENSE).
 
 ## Dependency direction
 
@@ -28,3 +28,4 @@ The native installer embeds exact Git source and vendor archives, verifies its p
 ## Maintained and historical documentation
 
 This file, [Validation](VALIDATION.md), the root philosophy and release engineering are maintained product contracts. Older platform build notes and localisation/dependency documents describe inherited implementation details and must be interpreted within current support boundaries.
+

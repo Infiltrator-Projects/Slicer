@@ -1,6 +1,6 @@
 ### Slicer product version
 
-Copy the version from `Help -> About Slicer`, or include the source commit from `git rev-parse HEAD` for a development build. Example: `0.0.1`.
+Copy the version from `Help -> About Slicer`, or include the source commit from `git rev-parse HEAD` for a development build.
 
 ### Operating system
 
@@ -20,3 +20,4 @@ Include the printer model, relevant modifications, and firmware version when the
 ### Project file
 
 Save the project with `File -> Save Project As`, zip the `.3mf`, and attach it when needed to reproduce the issue. Check it for information you do not want to publish.
+

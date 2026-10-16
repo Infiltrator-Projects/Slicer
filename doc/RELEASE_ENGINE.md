@@ -1,6 +1,6 @@
 # Infiltrator Slicer release engineering
 
-Slicer owns its build and release machinery in this repository. Product releases start at **0.0.1**, independently of the upstream PrusaSlicer 2.9.6 engine baseline. Upstream profile and file-format compatibility versions remain separate from the product version.
+Slicer owns its build and release machinery in this repository. [support/VERSION](../support/VERSION) is the sole product release authority. Profile and file-format compatibility versions remain separate from the product version.
 
 ## Release contract
 
@@ -32,15 +32,9 @@ If the source contract and all three asset qualification jobs succeeded but seal
 
 A newer main commit is accepted only if it is a descendant with changes confined to workflow files. The release tag must identify the original qualified product commit. Published bytes are compared with the qualified candidates before and after publication; existing public assets are never replaced.
 
-## Why the upstream workflows were removed
+## Build and publication ownership
 
-The PrusaSlicer 2.9.6 baseline delegated most GitHub Actions work to
-`Prusa-Development/PrusaSlicer-Actions`. That made the imported repository
-dependent on another project's branch, permissions, workflow interfaces and
-release assumptions. Those inherited workflows also attempted macOS and
-Flatpak jobs that are not part of Slicer's release contract.
-
-Slicer instead keeps two local workflows:
+Slicer keeps two repository-owned workflows:
 
 - `.github/workflows/ci.yml` — verify, build, test and seal exact candidates.
 - `.github/workflows/release.yml` — publish the already-qualified bytes.
@@ -104,10 +98,11 @@ packed as `infiltrator-slicer`.
 
 The desktop entry, product icons, metadata, and resource directory use Infiltrator identity. `slicer` is the canonical launcher. The retained `prusa-slicer` compatibility command overlaps the upstream package, so the Debian package declares a conflict/replacement relationship with `prusa-slicer`. Product versions and upstream profile compatibility versions must not be conflated.
 
-Application updates use Infiltrator releases and the Infiltrator APT repository. The inherited PrusaSlicer application updater and startup usage-report prompt are disabled. Printer profile repositories and optional printer/service integrations remain compatibility features with their original provider names.
+Application updates use Infiltrator releases and the Infiltrator APT repository. The inherited application updater and startup usage-report prompt are disabled. Printer profile repositories and optional printer/service integrations remain separate compatibility features.
 
 ## Licence material
 
-The inherited engine's AGPL text is retained in resources/licenses/AGPL-3.0.txt. The root LICENSE.txt records the project's GPL text; inherited component licensing is retained with component resources and source notices. CMake staging and the Windows installer include both files. The native source installer verifies the inherited licence file after extraction, and its fixture exercises the same filename.
+CMake staging and the Windows installer include the root [LICENSE](../LICENSE). The native source installer retains that same file in its embedded source archive and verifies its presence after extraction. Source checks and installer fixtures use the same canonical filename.
 
 Linux release build roots carry a source-owner marker. Cleanup refuses the source checkout, its ancestors and unrelated nonempty directories. Existing caches can be adopted only when their CMake source identity matches. This boundary applies before removing stage or build state.
+

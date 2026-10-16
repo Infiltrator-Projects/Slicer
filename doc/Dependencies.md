@@ -1,34 +1,24 @@
-# Dependency report for PrusaSlicer
-## Possible dynamic linking on Linux
-* zlib: Strict dependency required from the system, linked dynamically. Many other libs depend on zlib.
-* wxWidgets >= 3.2
-* libcurl
-* tbb
-* boost
-* eigen
-* glew
-* expat
-* openssl
-* nlopt
-* openvdb: This library depends on other libs, namely boost, zlib, openexr, blosc (not strictly), etc... 
-* CGAL: Needs additional dependencies
-    * MPFR 
-    * GMP
+# Dependency boundaries
 
-## External libraries in source tree
-* ad-mesh: Lots of customization, have to be bundled in the source tree.
-* avrdude: Like ad-mesh, many customization, need to be in the source tree.
-* clipper: An important library we have to have full control over it. We also have some slicer specific modifications.
-* glu-libtess: This is an extract of the mesa/glu library not officially available as a package.
-* imgui: no packages for debian, author suggests using in the source tree
-* miniz: No packages, author suggests using in the source tree
-* qhull: libqhull-dev does not contain libqhullcpp => link errors. Until it is fixed, we will use the builtin version. https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=925540
-* semver: One module C library, author expects to use clib for installation. No packages.
+Slicer's qualified builds consume repository-owned, pinned dependency inputs. The authoritative source definitions are under [deps](../deps/README.md); the [vendor manifest](../deps/vendor/manifest.cmake) records archive names, hashes and stored parts.
 
-## Header only
-* igl
-* nanosvg
-* agg
-* catch2: Only Arch has packages for catch2, other distros at most catch (v1.x). Being strictly header only, we bundle this in the source tree. Used for the unit-test suites.
+## Source ownership
+
+- [deps/vendor](../deps/vendor/README.md) contains compressed upstream source archives and the Windows WebView2 SDK. Builds verify and extract these inputs locally.
+- [bundled_deps](../bundled_deps) contains libraries integrated directly into the source tree. Their local build definitions and notices remain with the component.
+- [src](../src) contains the application, engine and implementation-specific integrations. A dependency's presence in the checkout does not make every optional platform integration part of the release contract.
+
+## Build and runtime boundaries
+
+The portable Linux build uses the pinned dependency bundle and derives the installed package's runtime dependencies from the actual staged executable with `dpkg-shlibdeps`. The package's metadata is authoritative; a historical list of distribution package names is not a substitute for inspecting the built artifact.
+
+Windows packaging uses the configured Release dependency prefix, generated executables and DLLs, and repository resources. Match architecture, runtime and toolchain before reusing a dependency prefix.
+
+Operating-system development packages, compilers and packaging tools are host prerequisites. They are separate from the bundled dependency source archives.
+
+## Maintenance and evidence
+
+Update the archive, its hash pin and manifest entry together. Preserve the component's source notices, verify local extraction, and qualify the affected build before publishing. [Vendor maintenance](../deps/vendor/README.md) defines the procedure; [Validation](VALIDATION.md) defines the evidence required for a product release.
+
 
 

@@ -23,7 +23,7 @@ The slicing engine owns geometry, model transformation and toolpath generation. 
 
 ## Build and test
 
-Use the platform prerequisites and build instructions in [Release engineering](doc/RELEASE_ENGINE.md). From a prepared Linux development environment:
+Use the [Linux build instructions](doc/How%20to%20build%20-%20Linux%20et%20al.md) or [Windows build instructions](doc/How%20to%20build%20-%20Windows.md) for platform prerequisites and commands. From a prepared Linux development environment:
 
 ```bash
 git clone https://github.com/Infiltrator-Projects/Slicer.git
@@ -60,4 +60,5 @@ Install the package for your platform and open **Slicer** from the application m
 
 ## Licence and provenance
 
-Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](LICENSE.txt). 
+Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](LICENSE).
+

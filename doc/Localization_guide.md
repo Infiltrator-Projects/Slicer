@@ -1,103 +1,48 @@
-# Localization and translation guide
+# Localisation and translation
 
-The purpose of this guide is to describe how to contribute to the PrusaSlicer translations. We use GNUgettext for extracting string resources from the project and PoEdit for editing translations.
+Slicer uses GNU gettext catalogues under [resources/localization](../resources/localization). The build defines extraction, catalogue merging and binary compilation targets in the root [CMakeLists.txt](../CMakeLists.txt).
 
-Those can be downloaded here: 
--    https://sourceforge.net/directory/os:windows/?q=gnu+gettext GNUgettext package contains a set of tools to extract strings from the source code and to create the translation Catalog.
--    https://poedit.net PoEdit provides good interface for the translators.
+## Catalogue ownership
 
-After GNUgettext is installed, it is recommended to add the path to gettext/bin to PATH variable.
+The current build and loader consume `PrusaSlicer.pot`, locale-specific `PrusaSlicer*.po` files and `PrusaSlicer.mo`. These filenames are compatibility interfaces; changing the displayed product name does not rename the catalogue domain.
 
-Full manual for GNUgettext can be seen here: http://www.gnu.org/software/gettext/manual/gettext.html
+Use this repository's catalogues and source list. Translation changes follow [Contributing](../CONTRIBUTING.md) and stay on `main`.
 
+## Edit an existing translation
 
-### Scenario 1. How do I add a translation or fix an existing translation
-1. Get PO-file from corresponding folder here:
-https://github.com/prusa3d/PrusaSlicer/tree/master/resources/localization
-2. Open this file in PoEdit as "Edit a translation"
-3. Apply your corrections to the translation
-4. Push changed PrusaSlicer.po and PrusaSlicer.mo (will create automatically after saving of PrusaSlicer.po in PoEdit) into the original folder.
+1. Open the appropriate locale's PO file in Poedit or another gettext-aware editor.
+2. Translate or correct the messages while preserving contexts, plurals, format placeholders and translator comments.
+3. Validate with `msgfmt --check-format`, then rebuild the MO catalogue.
+4. Run Slicer in that locale and check the affected controls, labels and dialogs.
 
-### Scenario 2. How do I add a new language support
-1. Get file PrusaSlicer.pot here :
-https://github.com/prusa3d/PrusaSlicer/tree/master/resources/localization
-2. Open it in PoEdit for "Create new translation"
-3. Select Translation Language (for example French).
-4. As a result you will have fr.po - the file containing translation to French.
-Notice. When the translation is complete you need to:
-    - Rename the file to PrusaSlicer.po
-    - Click "Save file" button. PrusaSlicer.mo will be created immediately
-    - Both PrusaSlicer.po and PrusaSlicer.mo have to be saved here:
-https://github.com/prusa3d/PrusaSlicer/tree/master/resources/localization/fr
-( name of folder "fr" means "French" - the translation language). 
+From a configured application build with its tools already built:
 
-### Scenario 3. How do I add a new text resource when implementing a feature to PrusaSlicer
-Each string resource in PrusaSlicer available for translation needs to be explicitly marked using L() macro like this:
-```C++
-auto msg = L("This message to be localized")
+```sh
+cmake --build build/native/app --target gettext_po_to_mo
 ```
-To get translated text use needed macro/function (`_(s)`).
-If you add new file resource, add it to the list of files containing macro `L()`
 
-### Scenario 4. How do I use GNUgettext to localize my own application taking PrusaSlicer as an example
+Use the actual application build directory if it differs from the native driver's default. For example, the French source is [PrusaSlicer_fr.po](../resources/localization/fr/PrusaSlicer_fr.po); the compiled catalogue is stored alongside it as `PrusaSlicer.mo`.
 
-1.  For convenience create a list of files with this macro `L(s)`. We have 
-https://github.com/prusa3d/PrusaSlicer/tree/master/resources/localization/list.txt.
+## Add a language or source string
 
-2.  Create template file(*.POT) with GNUgettext command:
-    ```
-        xgettext --keyword=L --add-comments=TRN --from-code=UTF-8 --debug -o PrusaSlicer.pot -f list.txt
-    ```
+Create the locale catalogue from [PrusaSlicer.pot](../resources/localization/PrusaSlicer.pot) with the correct language and plural metadata. Follow the existing locale directory and catalogue naming convention, compile the MO file and verify language selection in the application.
 
-    Use flag `--from-code=UTF-8` to specify that the source strings are in UTF-8 encoding
-    Use flag `--debug` to correctly extract formatted strings(used %d, %s etc.)
+Mark new translatable source strings with the applicable existing translation macro and add new source files to [list.txt](../resources/localization/list.txt). Regenerate the template through the build target so all configured extraction keywords and generated hints are included:
 
-3.  Create PO- and MO-files for your project as described above.
+```sh
+cmake --build build/native/app --target gettext_make_pot
+```
 
-4.  To merge old PO-file with strings from created new POT-file use command:
-    ```
-        msgmerge -N -o new.po old.po new.pot
-    ```
-    Use option `-N` to not using fuzzy matching when an exact match is not found.
+Merge the updated template into affected catalogues with gettext-aware tools and review the resulting changes. A regenerated catalogue is not evidence that translations or plural forms are correct.
 
-5.  To concatenate old PO-file with strings from new PO-file use command:
-    ```
-        msgcat -o new.po old.po
-    ```
+## Translation contracts
 
-6.  Create an English translation catalog with command:
-    ```    
-        msgen -o new.po old.po
-    ```
-    Notice, in this Catalog it will be totally same strings for initial text and translated.
+- Preserve placeholders such as `%1%`, `%d`, `%%` and their associated argument semantics.
+- Preserve intentional spaces, punctuation and line breaks; do not add line breaks to parameter labels.
+- Keep terminology consistent across related controls and use the application's established unit notation.
+- Check text length in the actual UI; alternative translations in parentheses can make controls unusably wide.
+- Proofread automated changes and report encoding defects with the locale, source revision and affected control.
 
-When you have Catalog to translation open POT or PO file in PoEdit and start translating.
+The gettext manual and Poedit documentation describe tool usage; this guide owns Slicer's catalogue paths and verification boundaries.
 
-
-## General guidelines for PrusaSlicer translators
-
-
-- We recommend using *PoEdit* application for translation (as described above). It will help you eliminate most punctuation errors and will show you strings with "random" translations (if the fuzzy parameter was used).
-
-- To check how the translated text looks on the UI elements, test it :) If you use *PoEdit*, all you need to do is save the file. At this point, a MO file will be created. Rename it PrusaSlicer.mo, and you can run PrusaSlicer (see above).
-
-- If you see an encoding error (garbage characters instead of Unicode) somewhere in PrusaSlicer, report it. It is likely not a problem of your translation, but a bug in the software.
-
-- See on which UI elements the translated phrase will be used. Especially if it's a button, it is very important to decide on the translation and not write alternative translations in parentheses, as this will significantly increase the width of the button, which is sometimes highly undesirable:
-
-![Long text on button](images/long_text_on_button.png)
-
-- If you decide to use autocorrect or any batch processing tool, the output requires very careful proofreading. It is very easy to make it do changes that break things big time.
-
-- **Any formatting parts of the phrases must remain unchanged.** For example, you should not change `%1%` to `%1 %`, you should not change `%%` to `%` (for percent sign) and similar. This will lead to application crashes.
-
-- Please pay attention to spaces, line breaks (\n) and punctuation marks. **Don't add extra line breaks.** This is especially important for parameter names.
-
-- Description of the parameters should not contain units of measurement. For example, "Enable fan if layer print time is less than ~~n seconds~~"
-
-- For units of measurement, use the international system of units. Use "s" instead of "sec".
-
-- If the phrase doesn't have a dot at the end, don't add it. And if it does, then don't forget to :)
-
-- It is useful to stick to the same terminology in the application (especially with basic terms such as "filament" and similar). Stay consistent. Otherwise it will confuse users.
 

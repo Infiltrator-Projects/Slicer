@@ -659,8 +659,7 @@ else ()
     install(DIRECTORY "${SLIC3R_RESOURCES_DIR}/" DESTINATION "${CMAKE_INSTALL_PREFIX}/resources")
 endif ()
 
-# Preserve the inherited engine licence in every CMake-staged distribution.
+# Include the project licence in every CMake-staged distribution.
 include(GNUInstallDirs)
-install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/resources/licenses/AGPL-3.0.txt"
-              "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt"
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/infiltrator-slicer")

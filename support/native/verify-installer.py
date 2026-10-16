@@ -40,7 +40,7 @@ def main():
         run("git", "init", "-q", "-b", "main", str(repo))
         write(repo / "support/VERSION", VERSION + "\n")
         write(repo / "version.inc", f'set(SLIC3R_VERSION "{VERSION}")\n')
-        write(repo / "resources/licenses/AGPL-3.0.txt", "Fixture license retained in source archive.\n")
+        write(repo / "LICENSE", "Fixture license retained in source archive.\n")
         write(repo / "deps/vendor/fixture.txt", "Pinned dependency source fixture.\n")
         write(repo / "CMakeLists.txt", "# Fixture CMake project\n")
         write(repo / "support/native/bootstrap.sh.in", (ROOT / "support/native/bootstrap.sh.in").read_text())
@@ -84,7 +84,7 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/InfiltratorSli
         assert not build_dir.exists(), "dry run must not create build state"
         extracted = work / "extracted source"
         run("bash", str(artifact), "--extract-only", str(extracted))
-        assert (extracted / "resources/licenses/AGPL-3.0.txt").read_text().startswith("Fixture license")
+        assert (extracted / "LICENSE").read_text().startswith("Fixture license")
         assert (extracted / "deps/vendor/fixture.txt").is_file()
         assert not (extracted / "build").exists()
         assert not (extracted / ".git").exists()
