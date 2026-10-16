@@ -34,3 +34,5 @@ macOS build notes remain inherited developer material; macOS is outside the curr
 Capture reproducible engine, UI, persistence or installer defects at the narrowest owning boundary. Keep Release checks executable; assert-based diagnostics are meaningful only where the test harness keeps them enabled. Never infer qualification from a job that skipped the relevant runtime.
 
 Release-script fixtures also reject a source checkout or unrelated nonempty directory as a cleanup target, accept an owned empty build root, verify safe reuse/cleanup, and adopt legacy caches only when CMake identifies the same source owner. The compiler is stubbed after preflight; all deletion targets belong to the disposable fixture.
+
+Test-owned assertions use Catch REQUIRE so Release/NDEBUG builds retain extrusion, arc-fitting, arrangement, embossing and support-generation checks. Production and third-party header assertion modes remain unchanged.

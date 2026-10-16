@@ -72,7 +72,7 @@ Vec2d get_intersection(const Vec2d &               point,
                                                             triangle[i2]);
         if (t2.has_value() && *t2 > *t) t = t2;
     }
-    assert(t.has_value()); // Not found intersection.
+    REQUIRE((t.has_value())); // Not found intersection.
     return point + dir * (*t);
 }
 
@@ -763,10 +763,10 @@ namespace Slic3r::MeshBoolean::cgal2 {
             for (const Point& p2 : polygon.points) {
                 auto p = projection.create_front_back(p2);
                 auto vi = result.add_vertex(typename CGALMesh::Point{ p.first.x(), p.first.y(), p.first.z() });
-                assert((size_t)vi == indices.size() + num_vertices_old);
+                REQUIRE(((size_t)vi == indices.size() + num_vertices_old));
                 indices.emplace_back(vi);
                 vi = result.add_vertex(typename CGALMesh::Point{ p.second.x(), p.second.y(), p.second.z() });
-                assert((size_t)vi == indices.size() + num_vertices_old);
+                REQUIRE(((size_t)vi == indices.size() + num_vertices_old));
                 indices.emplace_back(vi);
             }
             int32_t contour_index = 0;
@@ -775,8 +775,8 @@ namespace Slic3r::MeshBoolean::cgal2 {
                 auto find_edge = [&result](CGALMesh::Face_index fi, CGALMesh::Vertex_index from, CGALMesh::Vertex_index to) {
                     CGALMesh::Halfedge_index hi = result.halfedge(fi);
                     for (; result.target(hi) != to; hi = result.next(hi));
-                    assert(result.source(hi) == from);
-                    assert(result.target(hi) == to);
+                    REQUIRE((result.source(hi) == from));
+                    REQUIRE((result.target(hi) == to));
                     return hi;
                 };
                 auto fi = result.add_face(indices[i], indices[i + 1], indices[j]);
@@ -951,14 +951,14 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
         int32_t source_face_id = -1;
         void before_subface_creations(face_descriptor f_old, MyMesh& mesh)
         {
-            assert(&mesh == &object);
+            REQUIRE((&mesh == &object));
             source_face_id = face_map[f_old];
         }
         // it is called multiple times for one source_face_id
         void after_subface_created(face_descriptor f_new, MyMesh &mesh)
         {
-            assert(&mesh == &object);
-            assert(source_face_id != -1);
+            REQUIRE((&mesh == &object));
+            REQUIRE((source_face_id != -1));
             face_map[f_new] = source_face_id;
         }
 
@@ -993,7 +993,7 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
 
             const IntersectingElemnt* glyph = nullptr;
             if (&tm_face == &shape) {
-                assert(&tm_edge == &object);
+                REQUIRE((&tm_edge == &object));
                 switch (simplex_dimension) {
                 case 1:
                     // edge x edge intersection
@@ -1004,16 +1004,16 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
                     glyph = &face_shape_map[shape.face(hh_face)];
                     break;
                 default:
-                    assert(false);
+                    REQUIRE((false));
                 }
                 if (edge_source_coplanar_with_face)
                     vert_shape_map[object.source(hh_edge)] = *glyph;
                 if (edge_target_coplanar_with_face)
                     vert_shape_map[object.target(hh_edge)] = *glyph;
             } else {
-                assert(&tm_edge == &shape && &tm_face == &object);
-                assert(!edge_source_coplanar_with_face);
-                assert(!edge_target_coplanar_with_face);
+                REQUIRE((&tm_edge == &shape && &tm_face == &object));
+                REQUIRE((!edge_source_coplanar_with_face));
+                REQUIRE((!edge_target_coplanar_with_face));
                 glyph = &edge_shape_map[shape.edge(hh_edge)];
                 if (simplex_dimension == 0)
                     vert_shape_map[object.target(hh_face)] = *glyph;
@@ -1023,12 +1023,12 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
 
         void new_vertex_added(std::size_t node_id, vertex_descriptor vh, const MyMesh &tm)
         {
-            assert(&tm == &object);
-            assert(node_id < intersection_point_glyph.size());
+            REQUIRE((&tm == &object));
+            REQUIRE((node_id < intersection_point_glyph.size()));
             const IntersectingElemnt * glyph = intersection_point_glyph[node_id];
-            assert(glyph != nullptr);
-            assert(glyph->vertex_index != -1);
-            assert(glyph->point_index != -1);
+            REQUIRE((glyph != nullptr));
+            REQUIRE((glyph->vertex_index != -1));
+            REQUIRE((glyph->point_index != -1));
             vert_shape_map[vh] = glyph ? *glyph : IntersectingElemnt{};
         }
     } visitor{cgal_object, cgal_shape, edge_shape_map, face_shape_map,
@@ -1060,10 +1060,10 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
                 // This face has a constrained edge.
                 IntersectingElemnt shape_from = vert_shape_map[cgal_object.source(hi)];
                 IntersectingElemnt shape_to = vert_shape_map[cgal_object.target(hi)];
-                assert(shape_from.vertex_index != -1);
-                assert(shape_from.vertex_index == shape_to.vertex_index);
-                assert(shape_from.point_index != -1);
-                assert(shape_to.point_index != -1);
+                REQUIRE((shape_from.vertex_index != -1));
+                REQUIRE((shape_from.vertex_index == shape_to.vertex_index));
+                REQUIRE((shape_from.point_index != -1));
+                REQUIRE((shape_to.point_index != -1));
                 
                 const ShapesVertexId &vertex_index = glyph_contours[shape_from.vertex_index];
                 const ExPolygon &expoly  = shape[vertex_index.expoly];
@@ -1219,7 +1219,7 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
             state = FaceState::MarkedSplit;
             break;
         default:
-            assert(false);
+            REQUIRE((false));
         }
     }
 
@@ -1233,8 +1233,8 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
     for (auto fi : cgal_object.faces()) {
         const int32_t   source_face_id = face_map[fi];
         const FaceState state          = face_states[source_face_id];
-        assert(state == FaceState::Unmarked || state == FaceState::UnmarkedSplit || state == FaceState::UnmarkedEmitted ||
-               state == FaceState::Marked || state == FaceState::MarkedSplit);
+        REQUIRE((state == FaceState::Unmarked || state == FaceState::UnmarkedSplit || state == FaceState::UnmarkedEmitted ||
+               state == FaceState::Marked || state == FaceState::MarkedSplit));
         if (state == FaceState::UnmarkedEmitted) continue; // Already emitted.
 
         if (state == FaceState::Unmarked || 
@@ -1315,10 +1315,10 @@ TEST_CASE("Emboss extrude cut", "[Emboss-Cut]")
         // Add the sides.
         for (int i = 0; i < 3; ++i) {
             int j = (i + 1) % 3;
-            assert(target_vertices_extruded[i] != -1 &&
-                   target_vertices_extruded[j] != -1);
+            REQUIRE((target_vertices_extruded[i] != -1 &&
+                   target_vertices_extruded[j] != -1));
             if (boundary_vertex[i] && boundary_vertex[j]) {
-                assert(target_vertices[i] != -1 && target_vertices[j] != -1);
+                REQUIRE((target_vertices[i] != -1 && target_vertices[j] != -1));
                 its_extruded.indices.emplace_back(
                     Vec3i{target_vertices[i], target_vertices[j],
                           target_vertices_extruded[i]});

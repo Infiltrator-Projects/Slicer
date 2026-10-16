@@ -325,7 +325,7 @@ TEST_CASE("Zero heuristic function should result in dijsktra's algo", "[AStar]")
 
             ENode &operator=(const QNode &q)
             {
-                assert(node == q.node);
+                REQUIRE((node == q.node));
                 g = q.g;
                 h = q.h;
                 parent = q.parent;

@@ -422,6 +422,9 @@ jobs:
               Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'LICENSE') -Destination (Join-Path $Fixture 'LICENSE')
               $Iscc = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
               $Compiler = if ($Iscc) { $Iscc.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+              $FixtureLicenses = Join-Path $Fixture 'deps\vendor'
+              New-Item -ItemType Directory -Force -Path $FixtureLicenses | Out-Null
+              Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'deps\vendor\LICENSES.md') -Destination (Join-Path $FixtureLicenses 'LICENSES.md')
               $Version = (Get-Content support/VERSION -Raw).Trim()
               & $Compiler "/DRepoRoot=$Fixture" "/DAppVersion=$Version" "/DOutputDir=$Output" ./support/windows/installer.iss
               if ($LASTEXITCODE -ne 0) { throw 'Installer source failed compilation.' }
@@ -436,7 +439,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: deps/build/release-windows-deps
-          key: windows-2022-x64-release-v1-${{ steps.windows-toolchain.outputs.image-version }}-${{ hashFiles('deps/**', 'cmake/**', 'build_win.bat') }}
+          key: windows-2022-x64-release-v1-${{ steps.windows-toolchain.outputs.image-version }}-${{ hashFiles('deps/**', '!deps/**/*.md', 'cmake/**', 'build_win.bat') }}
 
       - name: Build Windows dependencies on cache miss
         id: windows-deps-build

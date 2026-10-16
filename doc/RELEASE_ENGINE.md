@@ -106,3 +106,5 @@ CMake staging and the Windows installer include the root [LICENSE](../LICENSE). 
 
 Linux release build roots carry a source-owner marker. Cleanup refuses the source checkout, its ancestors and unrelated nonempty directories. Existing caches can be adopted only when their CMake source identity matches. This boundary applies before removing stage or build state.
 
+
+The existing upstream licence inventory also retains the inherited engine's AGPL text. CMake staging and the Windows installer include that inventory alongside the canonical root LICENSE. Source archives retain it automatically. Dependency compiler-cache keys exclude maintained Markdown; package/source identity still covers the complete current Git tree.

@@ -662,4 +662,5 @@ endif ()
 # Include the project licence in every CMake-staged distribution.
 include(GNUInstallDirs)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE"
+              "${CMAKE_CURRENT_SOURCE_DIR}/deps/vendor/LICENSES.md"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/infiltrator-slicer")

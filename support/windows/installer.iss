@@ -40,6 +40,7 @@ UninstallDisplayIcon={app}\slicer.exe
 SetupLogging=yes
 
 [Files]
+Source: "{#RepoRoot}\deps\vendor\LICENSES.md"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "{#RepoRoot}\LICENSE"; DestDir: "{app}\licenses"; Flags: ignoreversion
 ; The build tree contains generated DLLs beside the launchers. Resources are
 ; copied from the repository rather than following the build-time junction.

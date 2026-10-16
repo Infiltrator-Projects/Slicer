@@ -279,12 +279,12 @@ SCENARIO("ExtrusionEntityCollection: Basics", "[ExtrusionEntity]")
     WHEN("cloned") {
         auto coll2 = std::unique_ptr<ExtrusionEntityCollection>(dynamic_cast<ExtrusionEntityCollection*>(collection.clone()));
         THEN("expected no_sort value") {
-            assert(! coll2->no_sort);
+            REQUIRE((! coll2->no_sort));
         }
         coll2->no_sort = true;
         THEN("no_sort is kept after clone") {
             auto coll3 = std::unique_ptr<ExtrusionEntityCollection>(dynamic_cast<ExtrusionEntityCollection*>(coll2->clone()));
-            assert(coll3->no_sort);
+            REQUIRE((coll3->no_sort));
         }
     }
 }

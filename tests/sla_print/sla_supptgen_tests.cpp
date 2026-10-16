@@ -167,7 +167,7 @@ ExPolygon create_trinagle_with_hole(double size)
 
 ExPolygon create_square_with_hole(double size, double hole_size)
 {
-    assert(sqrt(hole_size *hole_size / 2) < size);
+    REQUIRE((sqrt(hole_size *hole_size / 2) < size));
     auto hole = PolygonUtils::create_square(hole_size);
     hole.rotate(M_PI / 4.); // 45
     hole.reverse();
@@ -431,7 +431,7 @@ Points createNet(const BoundingBox& bounding_box, double distance)
             result.emplace_back(x, y);
         }
     }
-    assert(result.size() == count_points);
+    REQUIRE((result.size() == count_points));
     return result; 
 }
 

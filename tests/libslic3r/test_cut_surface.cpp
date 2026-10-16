@@ -84,7 +84,7 @@ static Emboss::OrthoProject create_projection_for_cut(
     const float safe_extension = 1.0f;
     double      min_z          = z_range.first - safe_extension;
     double      max_z          = z_range.second + safe_extension;
-    assert(min_z < max_z);
+    REQUIRE((min_z < max_z));
     // range between min and max value
     double   projection_size           = max_z - min_z;
     Matrix3d transformation_for_vector = tr.linear();

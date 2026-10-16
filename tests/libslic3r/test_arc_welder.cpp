@@ -277,8 +277,8 @@ TEST_CASE("least squares arc fitting, interpolating end points", "[ArcWelder]") 
             double sample_a = std::uniform_real_distribution<double>(0., angle)(rng);
             Vec2d  pt = center_pos + Eigen::Rotation2D(angle0 + sample_a) * Vec2d(sample_r, 0.);
             samples.emplace_back(pt);
-            assert((pt - center_pos).norm() > radius - deviation - SCALED_EPSILON);
-            assert((pt - center_pos).norm() < radius + deviation + SCALED_EPSILON);
+            REQUIRE(((pt - center_pos).norm() > radius - deviation - SCALED_EPSILON));
+            REQUIRE(((pt - center_pos).norm() < radius + deviation + SCALED_EPSILON));
         }
 //        Vec2d new_center = ArcWelder::arc_fit_center_algebraic_ls(start_pos, end_pos, center_pos, samples.begin(), samples.end());
         THEN("Center is fitted correctly") {
@@ -461,7 +461,7 @@ TEST_CASE("ExtrusionMultiPath simplification", "[ArcWelderMultiPathSimplify][!ma
 
     double min_segment_length = std::numeric_limits<double>::max();
     for (const SmoothPathElement &el : smooth_path) {
-        assert(el.path.size() > 1);
+        REQUIRE((el.path.size() > 1));
         Point prev_pt = el.path.front().point;
 
         for (auto segment_it = std::next(el.path.begin()); segment_it != el.path.end(); ++segment_it) {
@@ -569,8 +569,8 @@ TEST_CASE("arc quantization", "[ArcWelder]") {
                 const double d1 = (start_point - center).norm();
                 const double d2 = (end_point - center).norm();
                 const double dx = (end_point - start_point).norm();
-                assert(std::abs(d1 - std::abs(radius)) < EPSILON);
-                assert(std::abs(d2 - std::abs(radius)) < EPSILON);
+                REQUIRE((std::abs(d1 - std::abs(radius)) < EPSILON));
+                REQUIRE((std::abs(d2 - std::abs(radius)) < EPSILON));
             }
             // Quantized arc:
             const Vec2d  start_point_quantized { GCodeFormatter::quantize_xyzf(start_point.x()), GCodeFormatter::quantize_xyzf(start_point.y()) };
@@ -599,7 +599,7 @@ TEST_CASE("arc quantization", "[ArcWelder]") {
             // Adjust center of the arc to the quantized end points.
             Vec2d third_point = ArcWelder::arc_middle_point(start_point, end_point, radius, ccw);
             double third_point_radius = (third_point - center).norm();
-            assert(std::abs(third_point_radius - std::abs(radius)) < EPSILON);
+            REQUIRE((std::abs(third_point_radius - std::abs(radius)) < EPSILON));
             std::optional<Vec2d> center_adjusted = try_circle_center(start_point_quantized, end_point_quantized, third_point, EPSILON);
             //assert(center_adjusted);
             if (center_adjusted) {

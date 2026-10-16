@@ -697,7 +697,7 @@ static void foreach_combo(const Slic3r::Range<It> &range, const Fn &fn)
 {
     std::vector<bool> pairs(range.size(), false);
 
-    assert(range.size() >= 2);
+    REQUIRE((range.size() >= 2));
     pairs[range.size() - 1] = true;
     pairs[range.size() - 2] = true;
 
