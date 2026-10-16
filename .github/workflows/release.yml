@@ -2,6 +2,15 @@
 name: Publish release
 
 on:
+  workflow_call:
+    inputs:
+      qualified_run_id:
+        required: true
+        type: string
+      windows_run_id:
+        required: false
+        type: string
+        default: ''
   workflow_dispatch:
     inputs:
       qualified_run_id:
@@ -33,7 +42,7 @@ concurrency:
 jobs:
   publish:
     if: >-
-      github.event_name == 'workflow_dispatch' ||
+      inputs.qualified_run_id != '' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push' &&
        github.event.workflow_run.head_branch == 'main')
@@ -47,13 +56,14 @@ jobs:
       GH_REPO: ${{ github.repository }}
       QUALIFIED_RUN_ID: ${{ inputs.qualified_run_id || github.event.workflow_run.id }}
       WINDOWS_RUN_ID: ${{ inputs.windows_run_id || inputs.qualified_run_id || github.event.workflow_run.id }}
+      RECOVERY_MODE: ${{ inputs.qualified_run_id != '' }}
 
     steps:
       - name: Validate qualified source run
         shell: bash
         run: |
           set -euo pipefail
-          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+          if [[ "$RECOVERY_MODE" == true ]]; then
             test "$GITHUB_REF" = refs/heads/main
             mkdir -p candidate-linux candidate-native candidate-windows
           fi
@@ -62,12 +72,12 @@ jobs:
           validate_run() {
             local run_id=$1 output=$2
             gh api "repos/${GH_REPO}/actions/runs/${run_id}" > "${output}-run.json"
-            jq -e --arg repo "$GH_REPO" --arg event "$GITHUB_EVENT_NAME" '
+            jq -e --arg repo "$GH_REPO" --arg recovery "$RECOVERY_MODE" '
               .repository.full_name == $repo and .head_repository.full_name == $repo and
               .path == ".github/workflows/ci.yml" and .head_branch == "main" and
               (.head_sha | test("^[0-9a-f]{40}$")) and
               .status == "completed" and
-              (.event == "push" or ($event == "workflow_dispatch" and .event == "workflow_dispatch"))
+              (.event == "push" or ($recovery == "true" and .event == "workflow_dispatch"))
             ' "${output}-run.json" > /dev/null
             gh api "repos/${GH_REPO}/actions/runs/${run_id}/jobs?filter=latest&per_page=100" > "${output}-jobs.json"
             jq -e '.total_count < 100 and (.jobs | length) == .total_count' "${output}-jobs.json" > /dev/null
@@ -85,7 +95,7 @@ jobs:
             require_job qualified-jobs.json "$job"
           done
           if [[ "$WINDOWS_RUN_ID" != "$QUALIFIED_RUN_ID" ]]; then
-            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            test "$RECOVERY_MODE" = true
             validate_run "$WINDOWS_RUN_ID" windows
             test "$(jq -r '.head_sha' windows-run.json)" = "$source_sha"
             require_job windows-jobs.json 'Verify release contract'
@@ -98,7 +108,7 @@ jobs:
             "$QUALIFIED_RUN_ID" "$WINDOWS_RUN_ID" "$source_sha"
 
       - name: Download sealed qualified release bundle
-        if: github.event_name == 'workflow_run'
+        if: inputs.qualified_run_id == ''
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: slicer-release-assets
@@ -108,7 +118,7 @@ jobs:
           run-id: ${{ env.QUALIFIED_RUN_ID }}
 
       - name: Download qualified Linux candidate for recovery
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.qualified_run_id != ''
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: slicer-linux-release
@@ -118,7 +128,7 @@ jobs:
           run-id: ${{ env.QUALIFIED_RUN_ID }}
 
       - name: Download qualified Windows candidate for recovery
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.qualified_run_id != ''
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: slicer-windows-release
@@ -128,7 +138,7 @@ jobs:
           run-id: ${{ env.WINDOWS_RUN_ID }}
 
       - name: Download qualified native installer candidate for recovery
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.qualified_run_id != ''
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           name: slicer-native-release
@@ -138,7 +148,7 @@ jobs:
           run-id: ${{ env.QUALIFIED_RUN_ID }}
 
       - name: Seal existing qualified bytes for recovery
-        if: github.event_name == 'workflow_dispatch'
+        if: inputs.qualified_run_id != ''
         shell: bash
         run: |
           set -euo pipefail
@@ -269,7 +279,7 @@ jobs:
             fi
 
             if [[ "$tag_sha" != "$SOURCE_SHA" ]]; then
-              if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+              if [[ "$RECOVERY_MODE" == true ]]; then
                 printf 'Recovery tag %s must point to exact qualified source %s, but points to %s.\n' \
                   "$tag" "$SOURCE_SHA" "$tag_sha" >&2
                 exit 1

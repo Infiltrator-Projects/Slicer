@@ -72,6 +72,7 @@ jobs:
       - name: Open fresh interface and capture screen
         env:
           LIBGL_ALWAYS_SOFTWARE: '1'
+          SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
         shell: bash
         run: |
           set -euo pipefail
@@ -81,7 +82,7 @@ jobs:
           version=$(tr -d '[:space:]' < support/VERSION)
           slicer --datadir "$RUNNER_TEMP/slicer-gui-data" > gui-proof/startup.log 2>&1 &
           app_pid=$!
-          trap 'kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
+          trap 'import -window root gui-proof/startup.png || true; kill "$app_pid" 2>/dev/null || true; wait "$app_pid" 2>/dev/null || true' EXIT
           opened=false
           for attempt in {1..60}; do
             kill -0 "$app_pid" || { cat gui-proof/startup.log; exit 1; }
