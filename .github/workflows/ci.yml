@@ -21,7 +21,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: verify-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}-${{ inputs.qualified_windows_run || vars.SLICER_REUSE_WINDOWS_RUN || 'normal' }}
+  group: verify-v2-${{ github.repository }}-${{ github.ref_name }}-${{ inputs.platform || 'all' }}-${{ inputs.qualified_windows_run || vars.SLICER_REUSE_WINDOWS_RUN || 'normal' }}
   cancel-in-progress: true
 
 jobs:
@@ -29,6 +29,8 @@ jobs:
     name: Verify release contract
     runs-on: [self-hosted, Linux, X64, linux-native]
     timeout-minutes: 10
+    outputs:
+      windows_candidate: ${{ steps.contract.outputs.windows_candidate }}
     steps:
       - name: Check out exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,6 +42,7 @@ jobs:
         run: git clean -ffdx -e /build/
 
       - name: Validate version and repository-owned build machinery
+        id: contract
         shell: bash
         run: |
           set -euo pipefail
@@ -48,6 +51,18 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
           cmake -P support/verify-product.cmake
           python3 support/verify-fonts.py
+
+          # A version-scoped pin preserves an already-running Windows build
+          # during test-only recovery. Product-source equivalence and the
+          # original Windows qualification are still verified below.
+          windows_candidate=$(python3 -c '
+          import json, pathlib, sys
+          pin = pathlib.Path(".github/workflows/windows-candidate.json")
+          value = json.loads(pin.read_text()) if pin.exists() else {}
+          print(value.get("verify_run_id", "") if value.get("version") == sys.argv[1] else "")
+          ' "$version")
+          [[ -z "$windows_candidate" || "$windows_candidate" =~ ^[0-9]+$ ]]
+          printf 'windows_candidate=%s\n' "$windows_candidate" >> "$GITHUB_OUTPUT"
 
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
@@ -308,11 +323,11 @@ jobs:
 
       - name: Validate optional qualified Windows candidate reuse
         id: windows-reuse
-        if: inputs.qualified_windows_run != '' || vars.SLICER_REUSE_WINDOWS_RUN != ''
+        if: inputs.qualified_windows_run != '' || needs.source.outputs.windows_candidate != '' || vars.SLICER_REUSE_WINDOWS_RUN != ''
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          QUALIFIED_RUN: ${{ inputs.qualified_windows_run || vars.SLICER_REUSE_WINDOWS_RUN }}
+          QUALIFIED_RUN: ${{ inputs.qualified_windows_run || needs.source.outputs.windows_candidate || vars.SLICER_REUSE_WINDOWS_RUN }}
         run: |
           $ErrorActionPreference = 'Stop'
           if ($env:QUALIFIED_RUN -notmatch '^[0-9]+$') { throw 'Invalid qualified Windows run ID.' }
@@ -380,13 +395,14 @@ jobs:
           }
           Write-Host "Reusing Windows candidate from $($Run.head_sha); only Linux packaging, approved test fixtures, and workflow files changed."
           "reused=true" >> $env:GITHUB_OUTPUT
+          "run_id=$env:QUALIFIED_RUN" >> $env:GITHUB_OUTPUT
 
       - name: Download qualified Windows candidate for Linux-only recovery
         if: steps.windows-reuse.outputs.reused == 'true'
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
           github-token: ${{ github.token }}
-          run-id: ${{ vars.SLICER_REUSE_WINDOWS_RUN }}
+          run-id: ${{ steps.windows-reuse.outputs.run_id }}
           name: slicer-windows-release
           path: dist
 
@@ -482,9 +498,17 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  gui-startup:
+    name: Verify packaged GUI
+    needs: [source, linux-release]
+    if: github.event_name != 'workflow_dispatch' || inputs.platform != 'windows'
+    uses: ./.github/workflows/gui-startup.yml
+    with:
+      verify_run_id: ${{ github.run_id }}
+
   release-assets:
     name: Seal exact qualified release assets
-    needs: [source, linux-release, native-installer, windows-release]
+    needs: [source, linux-release, native-installer, windows-release, gui-startup]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
