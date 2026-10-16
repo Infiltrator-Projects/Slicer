@@ -1,0 +1,65 @@
+name: Qualify GUI and publish existing candidates
+
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/gui-recovery.yml]
+  workflow_dispatch:
+    inputs:
+      qualified_run_id:
+        description: Verify run containing the existing release candidates
+        type: string
+        default: '38971833472'
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  gui:
+    name: Qualify the existing Linux interface
+    uses: ./.github/workflows/gui-startup.yml
+    with:
+      verify_run_id: ${{ inputs.qualified_run_id || '38971833472' }}
+
+  qualified:
+    name: Wait for existing platform qualifications
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERIFY_RUN: ${{ inputs.qualified_run_id || '38971833472' }}
+    steps:
+      - name: Require successful original platform jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VERIFY_RUN" =~ ^[0-9]+$ ]]
+          deadline=$((SECONDS + 10620))
+          while ((SECONDS < deadline)); do
+            status=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFY_RUN" --jq .status)
+            if [[ "$status" == completed ]]; then
+              gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VERIFY_RUN/jobs?filter=latest&per_page=100" > jobs.json
+              for name in 'Verify release contract' 'Build and qualify Linux .deb' \
+                          'Build and qualify Linux native .run' 'Build and qualify Windows .exe'; do
+                jq -e --arg name "$name" '[.jobs[] | select(.name == $name)] |
+                  length == 1 and .[0].conclusion == "success"' jobs.json >/dev/null
+              done
+              echo 'All original platform qualifications passed; existing artifact bytes will be published.'
+              exit 0
+            fi
+            echo 'Waiting for the existing native and Windows qualifications; no compilation is started here.'
+            sleep 30
+          done
+          echo 'Timed out waiting for original platform qualifications.' >&2
+          exit 1
+
+  publish:
+    name: Publish qualified existing bytes
+    needs: [gui, qualified]
+    permissions:
+      actions: read
+      contents: write
+    uses: ./.github/workflows/release.yml
+    with:
+      qualified_run_id: ${{ inputs.qualified_run_id || '38971833472' }}
