@@ -5,8 +5,12 @@ on:
   workflow_dispatch:
     inputs:
       qualified_run_id:
-        description: "Verify push-to-main run whose DEB, native RUN and Windows qualification passed"
+        description: "Verify run whose Linux DEB and native RUN qualification passed"
         required: true
+        type: string
+      windows_run_id:
+        description: "Optional Windows Verify run at the same source commit (defaults to qualified run)"
+        required: false
         type: string
   workflow_run:
     workflows: ["Verify"]
@@ -22,7 +26,8 @@ concurrency:
 
 # Verify is the only producer of release binaries. Publication consumes the
 # exact qualified bytes from Verify and never rebuilds them. Manual recovery
-# repeats sealing only when DEB, native RUN and Windows qualification passed.
+# repeats sealing only when DEB, native RUN and Windows qualification passed
+# at the exact same source commit, including separate manual platform runs.
 # GitHub itself supplies the source .zip and .tar.gz for the release tag.
 
 jobs:
@@ -41,6 +46,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       GH_REPO: ${{ github.repository }}
       QUALIFIED_RUN_ID: ${{ inputs.qualified_run_id || github.event.workflow_run.id }}
+      WINDOWS_RUN_ID: ${{ inputs.windows_run_id || inputs.qualified_run_id || github.event.workflow_run.id }}
 
     steps:
       - name: Validate qualified source run
@@ -52,23 +58,44 @@ jobs:
             mkdir -p candidate-linux candidate-native candidate-windows
           fi
           [[ "$QUALIFIED_RUN_ID" =~ ^[0-9]+$ ]]
-          gh api "repos/${GH_REPO}/actions/runs/${QUALIFIED_RUN_ID}" > qualified-run.json
-          jq -e --arg repo "$GH_REPO" '
-            .repository.full_name == $repo and .head_repository.full_name == $repo and
-            .path == ".github/workflows/ci.yml" and .event == "push" and
-            .head_branch == "main" and (.head_sha | test("^[0-9a-f]{40}$"))
-          ' qualified-run.json > /dev/null
-          source_sha=$(jq -r '.head_sha' qualified-run.json)
-          gh api "repos/${GH_REPO}/actions/runs/${QUALIFIED_RUN_ID}/jobs?filter=latest&per_page=100" > qualified-jobs.json
-          jq -e '.total_count < 100 and (.jobs | length) == .total_count' qualified-jobs.json > /dev/null
-          for job in 'Verify release contract' 'Build and qualify Linux .deb' 'Build and qualify Linux native .run' 'Build and qualify Windows .exe'; do
+          [[ "$WINDOWS_RUN_ID" =~ ^[0-9]+$ ]]
+          validate_run() {
+            local run_id=$1 output=$2
+            gh api "repos/${GH_REPO}/actions/runs/${run_id}" > "${output}-run.json"
+            jq -e --arg repo "$GH_REPO" --arg event "$GITHUB_EVENT_NAME" '
+              .repository.full_name == $repo and .head_repository.full_name == $repo and
+              .path == ".github/workflows/ci.yml" and .head_branch == "main" and
+              (.head_sha | test("^[0-9a-f]{40}$")) and
+              .status == "completed" and
+              (.event == "push" or ($event == "workflow_dispatch" and .event == "workflow_dispatch"))
+            ' "${output}-run.json" > /dev/null
+            gh api "repos/${GH_REPO}/actions/runs/${run_id}/jobs?filter=latest&per_page=100" > "${output}-jobs.json"
+            jq -e '.total_count < 100 and (.jobs | length) == .total_count' "${output}-jobs.json" > /dev/null
+          }
+          require_job() {
+            local jobs=$1 job=$2
             jq -e --arg job "$job" '
               [.jobs[] | select(.name == $job)] |
               length == 1 and .[0].status == "completed" and .[0].conclusion == "success"
-            ' qualified-jobs.json > /dev/null
+            ' "$jobs" > /dev/null
+          }
+          validate_run "$QUALIFIED_RUN_ID" qualified
+          source_sha=$(jq -r '.head_sha' qualified-run.json)
+          for job in 'Verify release contract' 'Build and qualify Linux .deb' 'Build and qualify Linux native .run'; do
+            require_job qualified-jobs.json "$job"
           done
+          if [[ "$WINDOWS_RUN_ID" != "$QUALIFIED_RUN_ID" ]]; then
+            test "$GITHUB_EVENT_NAME" = workflow_dispatch
+            validate_run "$WINDOWS_RUN_ID" windows
+            test "$(jq -r '.head_sha' windows-run.json)" = "$source_sha"
+            require_job windows-jobs.json 'Verify release contract'
+            require_job windows-jobs.json 'Build and qualify Windows .exe'
+          else
+            require_job qualified-jobs.json 'Build and qualify Windows .exe'
+          fi
           printf 'SOURCE_SHA=%s\n' "$source_sha" >> "$GITHUB_ENV"
-          printf 'Using qualified Verify run %s at source %s.\n' "$QUALIFIED_RUN_ID" "$source_sha"
+          printf 'Using qualified Linux/native run %s and Windows run %s at source %s.\n' \
+            "$QUALIFIED_RUN_ID" "$WINDOWS_RUN_ID" "$source_sha"
 
       - name: Download sealed qualified release bundle
         if: github.event_name == 'workflow_run'
@@ -98,7 +125,7 @@ jobs:
           path: candidate-windows
           github-token: ${{ github.token }}
           repository: ${{ github.repository }}
-          run-id: ${{ env.QUALIFIED_RUN_ID }}
+          run-id: ${{ env.WINDOWS_RUN_ID }}
 
       - name: Download qualified native installer candidate for recovery
         if: github.event_name == 'workflow_dispatch'
