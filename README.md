@@ -1,71 +1,63 @@
-<p align="center"><img src="resources/icons/InfiltratorSlicer.svg" width="112" alt="Infiltrator Slicer"></p>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 
-# Infiltrator Slicer
+# Slicer
 
-Slicer is Infiltrator Projects' desktop application for preparing 3D models for FFF and resin printers. It converts models into G-code or resin print layers and includes a G-code viewer, multiple material support, model repair, variable layer heights, supports, and a command-line interface.
+**Project copyright:** © 2000-2026 Shannon Smith  
+**Release identity:** [`support/VERSION`](support/VERSION)
 
-**Product version: 0.0.3.** Infiltrator's release numbering is independent of the PrusaSlicer 2.9.6 source baseline.
+[![Verify](https://github.com/Infiltrator-Projects/Slicer/actions/workflows/ci.yml/badge.svg)](https://github.com/Infiltrator-Projects/Slicer/actions/workflows/ci.yml)
 
-## Install
+Slicer is a native C++/wxWidgets desktop application for Linux and Windows. Its graphical workspace prepares 3D models for filament and resin printers, generates G-code or resin print layers, and previews the resulting toolpaths.
 
-Download the qualified packages from [Infiltrator Slicer releases](https://github.com/Infiltrator-Projects/Slicer/releases):
+## Implementation
 
-- **Linux amd64:** `infiltrator-slicer_0.0.3_amd64.deb` for Debian/Ubuntu systems with the package's runtime dependencies.
-- **Windows x64:** `slicer-0.0.3-windows.exe` installer.
-- **Linux local CPU build:** `infiltrator-slicer-0.0.3-native-installer.run`, with the application and pinned dependency sources bundled inside.
+The slicing engine owns geometry, model transformation and toolpath generation. The desktop application owns model editing, settings and interaction. Product development retains existing model, printer-profile and file-format compatibility; the current ownership boundaries are documented in [Architecture](doc/ARCHITECTURE.md).
 
-For a downloaded Debian package:
+## Capabilities
 
-```sh
-sudo apt install ./infiltrator-slicer_0.0.3_amd64.deb
-slicer --help
+- Filament and resin slicing, with printer and material profiles.
+- Model arrangement, transformation and repair.
+- Supports, variable layer heights and multiple materials.
+- G-code and toolpath preview.
+- Linux and Windows desktop packages, plus a Linux installer that compiles for the local CPU.
+
+## Build and test
+
+Use the platform prerequisites and build instructions in [Release engineering](doc/RELEASE_ENGINE.md). From a prepared Linux development environment:
+
+```bash
+git clone https://github.com/Infiltrator-Projects/Slicer.git
+cd Slicer
+cmake -P support/verify-product.cmake
+support/build-native.sh --profile native
 ```
 
-For APT installation and updates, configure the [Infiltrator package repository](https://github.com/Infiltrator-Projects/Infiltrator-Repository) using its installation instructions, then run:
+The native build driver builds the application and runs its tests. Windows builds and installer packaging use `support/windows/build-release.ps1`. [Validation](doc/VALIDATION.md) defines the fast source checks, regression discipline and evidence required for a release. The repository-owned `Verify` workflow qualifies the Linux package, Windows installer and native source installer.
 
-```sh
-sudo apt update
-sudo apt install infiltrator-slicer
-```
+## Releases
 
-On Windows, run the installer and open **Slicer** from the Start menu. The installer includes the application, its DLLs, and resources.
+Development stays on `main`. `support/VERSION` is the sole release-intent source of truth. Releases are produced from the exact tested commit, and published tags and assets are immutable. The latest published release is the repository's GitHub [Latest release](https://github.com/Infiltrator-Projects/Slicer/releases/latest) rather than a second version value maintained in this document.
 
-For a Linux build optimised for your own CPU:
+## Release assets
 
-```sh
-bash infiltrator-slicer-0.0.3-native-installer.run --profile native
-# GCC two-pass profile-guided optimisation:
-bash infiltrator-slicer-0.0.3-native-installer.run --profile aggressive
-```
+A published release contains three assets from the same tested source revision:
 
-The `.run` builds and tests the application locally, creates a Debian package, and installs that package. Use `--no-install` to retain the package without installing it, or `--dry-run` to inspect the plan. Missing operating-system build tools are reported before compilation; `--install-prerequisites` explicitly allows installing them through APT. Library source archives are bundled and hash-checked, without downloads from third-party build servers.
+- `infiltrator-slicer_<version>_amd64.deb` — Debian/Ubuntu amd64 package.
+- `slicer-<version>-windows.exe` — Windows x64 installer.
+- `infiltrator-slicer-<version>-native-installer.run` — Linux amd64 installer with the application source and pinned dependency archives for local CPU compilation.
 
-## Use
+Install the package for your platform and open **Slicer** from the application menu. Linux packages are also available through the [Infiltrator package repository](https://github.com/Infiltrator-Projects/Infiltrator-Repository). The native installer supports `native` and `aggressive` build profiles; its usage and installation options are documented in [Release engineering](doc/RELEASE_ENGINE.md).
 
-Open a model, select a printer and material profile, arrange the plate, slice it, and export the resulting printer instructions. Check the selected profile against your printer before printing. Printer and material names describe compatible hardware; they are not the application's product identity.
+## Technical documentation
 
-Run `slicer --help` for available command-line actions. The help banner reports the product version; `--version` is not a supported option. Existing `prusa-slicer` executable names are retained where needed for compatibility.
+- [Engineering philosophy](PHILOSOPHY.md) — governing engineering and documentation standard.
+- [Architecture](doc/ARCHITECTURE.md) — durable software contracts.
+- [Validation](doc/VALIDATION.md) — compact verification entry point.
+- [Release engineering](doc/RELEASE_ENGINE.md) — builds, qualified assets and publication.
+- [Contributing](CONTRIBUTING.md) — verification and repository discipline.
+- [Security](SECURITY.md) — security boundaries and reporting.
+- [Code of conduct](.github/CODE_OF_CONDUCT.md) — conduct in project spaces.
 
-Application releases come from this repository or Infiltrator APT. The inherited upstream application updater does not download PrusaSlicer over this product. Printer-profile updates remain a separate compatibility feature.
+## Licence and provenance
 
-## Build and contribute
-
-- [Linux release and native builds](doc/How%20to%20build%20-%20Linux%20et%20al.md)
-- [Windows release installer](doc/How%20to%20build%20-%20Windows.md)
-- [Release qualification and publication](doc/RELEASE_ENGINE.md)
-- [Vendored dependency sources and verification](deps/vendor/README.md)
-- [Report an issue](https://github.com/Infiltrator-Projects/Slicer/issues)
-
-The supported distributables are the Linux amd64 DEB, Windows x64 EXE, and Linux amd64 native compiler `.run`. Inherited macOS and other platform development notes remain development references.
-
-## Origins and license
-
-Infiltrator Slicer uses the [PrusaSlicer](https://github.com/prusa3d/PrusaSlicer) engine, derived from [Slic3r](https://github.com/Slic3r/Slic3r). Copyright notices are available through **About → Portions copyright**, the source headers, and the dependency license inventory.
-
-The application is licensed under the [GNU Affero General Public License, version 3 or later](LICENSE-AGPL-3.0.txt). Third-party components retain their own licenses; see the source headers and [vendored dependency license inventory](deps/vendor/LICENSES.md).
-
-## Engineering contracts
-
-[Philosophy](PHILOSOPHY.md) · [Architecture](doc/ARCHITECTURE.md) · [Validation](doc/VALIDATION.md) · [Release engineering](doc/RELEASE_ENGINE.md) · [Changes](CHANGELOG.md).
-
-Product identity is authoritative in [support/VERSION](support/VERSION). The inherited engine's compatibility identity is separate.
+Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](LICENSE.txt). Documented dependencies and separately licensed components and assets retain their own identities and licences. Existing copyright and licence notices remain in their owning source files; see also the [vendored dependency licence inventory](deps/vendor/LICENSES.md).
