@@ -3,7 +3,7 @@
 # Slicer
 
 **Project copyright:** © 2000-2026 Shannon Smith  
-**Release identity:** [`support/VERSION`](support/VERSION)
+**Release identity:** [`support/VERSION`](../support/VERSION)
 
 [![Verify](https://github.com/Infiltrator-Projects/Slicer/actions/workflows/ci.yml/badge.svg)](https://github.com/Infiltrator-Projects/Slicer/actions/workflows/ci.yml)
 
@@ -11,7 +11,7 @@ Slicer is a native C++/wxWidgets desktop application for Linux and Windows. Its 
 
 ## Implementation
 
-The slicing engine owns geometry, model transformation and toolpath generation. The desktop application owns model editing, settings and interaction. Product development retains existing model, printer-profile and file-format compatibility; the current ownership boundaries are documented in [Architecture](doc/ARCHITECTURE.md).
+The slicing engine owns geometry, model transformation and toolpath generation. The desktop application owns model editing, settings and interaction. Product development retains existing model, printer-profile and file-format compatibility; the current ownership boundaries are documented in [Architecture](../doc/ARCHITECTURE.md).
 
 ## Capabilities
 
@@ -23,7 +23,7 @@ The slicing engine owns geometry, model transformation and toolpath generation. 
 
 ## Build and test
 
-Use the [Linux build instructions](doc/How%20to%20build%20-%20Linux%20et%20al.md) or [Windows build instructions](doc/How%20to%20build%20-%20Windows.md) for platform prerequisites and commands. From a prepared Linux development environment:
+Use the [Linux build instructions](../doc/How%20to%20build%20-%20Linux%20et%20al.md) or [Windows build instructions](../doc/How%20to%20build%20-%20Windows.md) for platform prerequisites and commands. From a prepared Linux development environment:
 
 ```bash
 git clone https://github.com/Infiltrator-Projects/Slicer.git
@@ -32,7 +32,7 @@ cmake -P support/verify-product.cmake
 support/build-native.sh --profile native
 ```
 
-The native build driver builds the application and runs its tests. Windows builds and installer packaging use `support/windows/build-release.ps1`. [Validation](doc/VALIDATION.md) defines the fast source checks, regression discipline and evidence required for a release. The repository-owned `Verify` workflow qualifies the Linux package, Windows installer and native source installer.
+The native build driver builds the application and runs its tests. Windows builds and installer packaging use `support/windows/build-release.ps1`. [Validation](../doc/VALIDATION.md) defines the fast source checks, regression discipline and evidence required for a release. The repository-owned `Verify` workflow qualifies the Linux package, Windows installer and native source installer.
 
 ## Releases
 
@@ -46,19 +46,19 @@ A published release contains three assets from the same tested source revision:
 - `slicer-<version>-windows.exe` — Windows x64 installer.
 - `infiltrator-slicer-<version>-native-installer.run` — Linux amd64 installer with the application source and pinned dependency archives for local CPU compilation.
 
-Install the package for your platform and open **Slicer** from the application menu. Linux packages are also available through the [Infiltrator package repository](https://github.com/Infiltrator-Projects/Infiltrator-Repository). The native installer supports `native` and `aggressive` build profiles; its usage and installation options are documented in [Release engineering](doc/RELEASE_ENGINE.md).
+Install the package for your platform and open **Slicer** from the application menu. Linux packages are also available through the [Infiltrator package repository](https://github.com/Infiltrator-Projects/Infiltrator-Repository). The native installer supports `native` and `aggressive` build profiles; its usage and installation options are documented in [Release engineering](../doc/RELEASE_ENGINE.md).
 
 ## Technical documentation
 
-- [Engineering philosophy](PHILOSOPHY.md) — governing engineering and documentation standard.
-- [Architecture](doc/ARCHITECTURE.md) — durable software contracts.
-- [Validation](doc/VALIDATION.md) — compact verification entry point.
-- [Release engineering](doc/RELEASE_ENGINE.md) — builds, qualified assets and publication.
+- [Engineering philosophy](../PHILOSOPHY.md) — governing engineering and documentation standard.
+- [Architecture](../doc/ARCHITECTURE.md) — durable software contracts.
+- [Validation](../doc/VALIDATION.md) — compact verification entry point.
+- [Release engineering](../doc/RELEASE_ENGINE.md) — builds, qualified assets and publication.
 - [Contributing](CONTRIBUTING.md) — verification and repository discipline.
 - [Security](SECURITY.md) — security boundaries and reporting.
-- [Code of conduct](.github/CODE_OF_CONDUCT.md) — conduct in project spaces.
+- [Code of conduct](CODE_OF_CONDUCT.md) — conduct in project spaces.
 
 ## Licence and provenance
 
-Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](LICENSE).
+Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](../LICENSE).
 

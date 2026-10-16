@@ -6,7 +6,7 @@ Slicer uses GNU gettext catalogues under [resources/localization](../resources/l
 
 The current build and loader consume `PrusaSlicer.pot`, locale-specific `PrusaSlicer*.po` files and `PrusaSlicer.mo`. These filenames are compatibility interfaces; changing the displayed product name does not rename the catalogue domain.
 
-Use this repository's catalogues and source list. Translation changes follow [Contributing](../CONTRIBUTING.md) and stay on `main`.
+Use this repository's catalogues and source list. Translation changes follow [Contributing](../.github/CONTRIBUTING.md) and stay on `main`.
 
 ## Edit an existing translation
 

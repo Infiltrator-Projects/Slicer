@@ -18,6 +18,6 @@ Models, archives, profiles, project files, G-code, network responses and printer
 
 Printer and service integrations have explicit network and credential boundaries. Do not expose secrets in logs, exports or error reports. An unavailable device or an unverified printer result must not be presented as a verified success.
 
-The native build driver stages installation files without installing into the running system. The native installer requests administrative access only for explicitly selected prerequisite installation and final package installation, as documented in [Release engineering](doc/RELEASE_ENGINE.md).
+The native build driver stages installation files without installing into the running system. The native installer requests administrative access only for explicitly selected prerequisite installation and final package installation, as documented in [Release engineering](../doc/RELEASE_ENGINE.md).
 
 Security-sensitive code includes external-input parsing, archive extraction, geometry processing, network and credential handling, durable writes and exports, native library interaction, package and release integrity, and memory safety. Fix defects at the underlying boundary and add regression coverage where practical.
