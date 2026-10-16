@@ -23,8 +23,8 @@
 #include "libslic3r/Line.hpp"
 #include "libslic3r/Polyline.hpp"
 #include "libslic3r/PrintConfig.hpp"
-#include "../../src/libvgcode/include/GCodeInputData.hpp"
-#include "../../src/libvgcode/include/PathVertex.hpp"
+#include "libvgcode/include/GCodeInputData.hpp"
+#include "libvgcode/include/PathVertex.hpp"
 #include "libvgcode/include/Types.hpp"
 
 namespace libvgcode {
