@@ -419,6 +419,9 @@ jobs:
               New-Item -ItemType Directory -Force -Path $Payload, $Resources, $Output | Out-Null
               Set-Content (Join-Path $Payload 'slicer.exe') 'Installer syntax fixture'
               Set-Content (Join-Path $Resources 'fixture.txt') 'Installer syntax fixture'
+              foreach ($License in 'LICENSE-AGPL-3.0.txt', 'LICENSE.txt') {
+                  Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE $License) -Destination (Join-Path $Fixture $License)
+              }
               $Iscc = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
               $Compiler = if ($Iscc) { $Iscc.Source } else { "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
               $Version = (Get-Content support/VERSION -Raw).Trim()
