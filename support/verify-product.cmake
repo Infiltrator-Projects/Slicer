@@ -53,7 +53,7 @@ foreach(notice IN ITEMS "2016-2026 Prusa Research" "2011-2018 Alessandro Ranellu
 endforeach()
 message(STATUS "Slicer ${release_version}; engine compatibility ${SLIC3R_COMPATIBILITY_VERSION}")
 
-file(READ "${repo_root}/LICENSE-AGPL-3.0.txt" inherited_license)
+file(READ "${repo_root}/resources/licenses/AGPL-3.0.txt" inherited_license)
 if(NOT inherited_license MATCHES "GNU AFFERO GENERAL PUBLIC LICENSE")
     message(FATAL_ERROR "Retain the inherited AGPL licence text in source and packages.")
 endif()

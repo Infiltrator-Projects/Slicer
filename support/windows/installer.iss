@@ -40,7 +40,6 @@ UninstallDisplayIcon={app}\slicer.exe
 SetupLogging=yes
 
 [Files]
-Source: "{#RepoRoot}\LICENSE-AGPL-3.0.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 Source: "{#RepoRoot}\LICENSE.txt"; DestDir: "{app}\licenses"; Flags: ignoreversion
 ; The build tree contains generated DLLs beside the launchers. Resources are
 ; copied from the repository rather than following the build-time junction.

@@ -2,7 +2,7 @@
 
 ## Current implementation and provenance
 
-Slicer owns product identity, distribution and subsequent development over the inherited PrusaSlicer 2.9.6 engine. This is an evolving product architecture, not a claim that all engine code was newly written. LICENSE-AGPL-3.0.txt and source notices retain the applicable legal attribution.
+Slicer owns product identity, distribution and subsequent development over the inherited PrusaSlicer 2.9.6 engine. This is an evolving product architecture, not a claim that all engine code was newly written. resources/licenses/AGPL-3.0.txt and source notices retain the applicable legal attribution.
 
 ## Dependency direction
 
