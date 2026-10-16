@@ -660,6 +660,7 @@ else ()
 endif ()
 
 # Preserve the inherited engine licence in every CMake-staged distribution.
+include(GNUInstallDirs)
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE-AGPL-3.0.txt"
               "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE.txt"
         DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/doc/infiltrator-slicer")

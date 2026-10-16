@@ -10,6 +10,7 @@ Fast source checks used by CI include:
 cmake -P support/verify-product.cmake
 python3 support/verify-vendor.py
 python3 support/linux/verify-staging.py
+python3 support/linux/verify-build-root.py
 python3 support/native/verify-installer.py
 python3 support/native/verify-driver.py
 ```
@@ -31,3 +32,5 @@ macOS build notes remain inherited developer material; macOS is outside the curr
 ## Regression discipline
 
 Capture reproducible engine, UI, persistence or installer defects at the narrowest owning boundary. Keep Release checks executable; assert-based diagnostics are meaningful only where the test harness keeps them enabled. Never infer qualification from a job that skipped the relevant runtime.
+
+Release-script fixtures also reject a source checkout or unrelated nonempty directory as a cleanup target, accept an owned empty build root, verify safe reuse/cleanup, and adopt legacy caches only when CMake identifies the same source owner. The compiler is stubbed after preflight; all deletion targets belong to the disposable fixture.

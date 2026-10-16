@@ -48,6 +48,7 @@ jobs:
           bash -n support/linux/build-deb.sh
           bash -n support/native/bootstrap.sh.in
           python3 support/linux/verify-staging.py
+          python3 support/linux/verify-build-root.py
           python3 support/verify-vendor.py
           python3 support/native/verify-installer.py
           python3 support/native/verify-driver.py

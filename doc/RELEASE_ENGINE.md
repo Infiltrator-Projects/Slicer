@@ -109,3 +109,5 @@ Application updates use Infiltrator releases and the Infiltrator APT repository.
 ## Licence material
 
 The inherited engine's AGPL text is retained in LICENSE-AGPL-3.0.txt. The separately maintained LICENSE.txt does not replace that provenance. CMake staging and the Windows installer include both files. The native source installer verifies the inherited licence file after extraction, and its fixture exercises the same filename.
+
+Linux release build roots carry a source-owner marker. Cleanup refuses the source checkout, its ancestors and unrelated nonempty directories. Existing caches can be adopted only when their CMake source identity matches. This boundary applies before removing stage or build state.

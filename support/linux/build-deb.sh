@@ -64,7 +64,7 @@ done
 [[ -f CMakeLists.txt && -f version.inc && -f support/VERSION ]] ||
     fail "run this script from the Slicer repository root"
 
-for tool in awk cmake dpkg dpkg-deb dpkg-shlibdeps du sed pkg-config; do
+for tool in realpath awk cmake dpkg dpkg-deb dpkg-shlibdeps du sed pkg-config; do
     command -v "$tool" >/dev/null 2>&1 || fail "$tool is required"
 done
 
@@ -99,9 +99,28 @@ case "$output_dir" in
     *)  output="$repo_root/$output_dir" ;;
 esac
 
+build_base=$(realpath -m -- "$build_base")
+[[ "$build_base" != / ]] || fail "build root cannot be the filesystem root"
+case "$repo_root/" in
+    "$build_base/"*) fail "build root cannot contain the source checkout" ;;
+esac
+owner="$build_base/.slicer-release-owner"
+if [[ -f "$owner" ]]; then
+    [[ "$(cat "$owner")" == "$repo_root" ]] ||
+        fail "build root belongs to another source checkout"
+elif [[ -d "$build_base" && -n "$(find "$build_base" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+    # Adopt pre-marker caches only when CMake proves this checkout owns them.
+    if ! grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root" "$build_base/app/CMakeCache.txt" 2>/dev/null &&
+       ! grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root/deps" "$build_base/deps/CMakeCache.txt" 2>/dev/null; then
+        fail "nonempty build root has no matching Slicer ownership"
+    fi
+fi
 if ((clean)); then
     rm -rf -- "$build_base"
 fi
+mkdir -p "$build_base"
+printf '%s\n' "$repo_root" > "$owner"
+
 
 deps_build="$build_base/deps"
 deps_prefix="$deps_build/destdir/usr/local"
