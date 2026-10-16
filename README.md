@@ -60,4 +60,4 @@ Install the package for your platform and open **Slicer** from the application m
 
 ## Licence and provenance
 
-Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](LICENSE.txt). Documented dependencies and separately licensed components and assets retain their own identities and licences. Existing copyright and licence notices remain in their owning source files; see also the [vendored dependency licence inventory](deps/vendor/LICENSES.md).
+Shannon Smith-owned Slicer source, documentation and application artwork are licensed under [GPL-3.0-or-later](LICENSE.txt). 
