@@ -66,9 +66,10 @@ then rebuilt using the measured profile. Unsupported optimisation flags are
 rejected rather than silently assumed.
 
 The underlying native driver builds and optionally stages files without
-installing system packages. The `.run` reports missing host development tools,
-allows their APT installation with `--install-prerequisites`, and requests
-administrative access only for that setup and the final local package install.
+installing system packages. The `.run` automatically detects missing Debian-family
+host development prerequisites, requests administrative access only for APT,
+installs only the missing packages, and then continues the regular-user build.
+Administrative access is also requested for the final local package install.
 `--no-install` leaves the package on disk. Its build directory is persistent
 because dependency tools can record absolute installation paths.
 
@@ -76,7 +77,9 @@ CI executes the exact generated `.run` in aggressive mode without installing
 onto the persistent runner, runs the native application tests, validates the
 resulting Debian metadata, menu entries, icons and help banner, and seals that
 same `.run` alongside the portable DEB and Windows EXE. Installer fixtures also
-exercise real archive extraction, exact download URLs, failed/corrupt downloads, paths containing spaces and real ELF package generation.
+exercise automatic prerequisite installation, real archive extraction, exact
+download URLs, failed/corrupt downloads, paths containing spaces and real ELF
+package generation.
 
 ## Windows packaging
 
@@ -89,8 +92,8 @@ build-only import libraries are excluded.
 ## Debian packaging
 
 The Debian candidate is built from the repository's static dependency bundle
-with FHS installation enabled. Runtime library dependencies are derived from
-the actual built executable with `dpkg-shlibdeps`, then the staged tree is
+with FHS installation enabled. Runtime library dependencies are derived from the
+actual built executable with `dpkg-shlibdeps`, then the staged tree is
 packed as `slicer`.
 
 The desktop entry, product icons, metadata, and resource directory use Infiltrator identity. `slicer` is the canonical launcher. The retained `prusa-slicer` compatibility command overlaps the upstream package, so the Debian package declares a conflict/replacement relationship with `prusa-slicer`. Product versions and upstream profile compatibility versions must not be conflated.
