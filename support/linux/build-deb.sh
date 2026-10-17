@@ -160,6 +160,16 @@ cmake -S . -B "$app_build" \
     -DSLIC3R_FHS=ON \
     -DSLIC3R_BUILD_TESTS=ON \
     -DCMAKE_PREFIX_PATH="$deps_prefix"
+
+# Reused self-hosted build trees may retain a completed test binary whose mode
+# bits were changed outside CMake. CMake then considers the target up to date,
+# while CTest cannot execute it. Remove only that invalid generated artifact so
+# its owning target is relinked; valid cached objects and dependencies remain.
+stale_test="$app_build/tests/libslic3r/libslic3r_tests"
+if [[ -e "$stale_test" && ! -x "$stale_test" ]]; then
+    rm -f -- "$stale_test"
+fi
+
 cmake --build "$app_build" --parallel "$jobs"
 
 if command -v xvfb-run >/dev/null 2>&1; then
