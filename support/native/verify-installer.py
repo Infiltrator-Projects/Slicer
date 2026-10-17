@@ -78,7 +78,9 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/Slicer.svg"
         artifact = builder.build(repo, "HEAD", work / "first output")
         repeated = builder.build(repo, "HEAD", work / "second output")
         assert artifact.read_bytes() == repeated.read_bytes(), "same Git commit must produce identical bytes"
-        assert f"Slicer {VERSION}" in run("bash", str(artifact), "--help")
+        help_text = run("bash", str(artifact), "--help")
+        assert f"Slicer {VERSION}" in help_text
+        assert "--install-prerequisites" not in help_text, "prerequisite installation must not require an opt-in switch"
         metadata = json.loads(run("bash", str(artifact), "--metadata"))
         assert metadata["version"] == VERSION and metadata["source_sha"] == sha
         assert artifact.stat().st_size < 16384, "installer must contain no source payload"
@@ -122,15 +124,22 @@ else:
                                  env=environment, capture_output=True)
         assert refused.returncode, "existing populated source must not be overwritten"
 
-        # Host package detection is isolated; Debian's real library dependency
-        # lookup and ELF packaging still run, and any sudo call is a failure.
+        # Host package detection is isolated. One prerequisite is deliberately
+        # reported missing so the ordinary installer path must invoke APT via
+        # sudo automatically before the real ELF package fixture is built.
         tools = work / "fixture tools"
         real_query = shutil.which("dpkg-query")
-        write(tools / "dpkg-query", '#!/usr/bin/env bash\nif [[ $# == 3 && "$1" == -W && "$2" == \'-f=${Status}\' ]]; then\n printf "install ok installed"\nelse\n exec ' + repr(real_query) + ' "$@"\nfi\n', executable=True)
+        write(tools / "dpkg-query", '#!/usr/bin/env bash\nif [[ $# == 3 && "$1" == -W && "$2" == \'-f=${Status}\' ]]; then\n if [[ "$3" == libglu1-mesa-dev ]]; then exit 1; fi\n printf "install ok installed"\nelse\n exec ' + repr(real_query) + ' "$@"\nfi\n', executable=True)
         write(tools / "id", '#!/usr/bin/env bash\nif [[ "$*" == -u ]]; then printf "1000\\n"; else exec /usr/bin/id "$@"; fi\n', executable=True)
-        write(tools / "sudo", '#!/usr/bin/env bash\nprintf "unexpected privilege request\\n" >&2\nexit 89\n', executable=True)
-        environment = dict(environment, PATH=str(tools) + os.pathsep + os.environ["PATH"])
+        sudo_log = work / "sudo.log"
+        write(tools / "sudo", '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$SLICER_FIXTURE_SUDO_LOG"\nexit 0\n', executable=True)
+        environment = dict(environment, PATH=str(tools) + os.pathsep + os.environ["PATH"],
+                           SLICER_FIXTURE_SUDO_LOG=str(sudo_log))
         run("bash", str(artifact), "--profile", "aggressive", "--jobs", "2", "--build-dir", str(build_dir), "--no-install", env=environment)
+        sudo_calls = sudo_log.read_text().splitlines()
+        assert sudo_calls[0] == "apt-get update", sudo_calls
+        assert any(call.startswith("apt-get install --no-install-recommends ") and "libglu1-mesa-dev" in call
+                   for call in sudo_calls), sudo_calls
         deb = build_dir / "packages" / f"slicer_{VERSION}_amd64.deb"
         assert run("dpkg-deb", "-f", str(deb), "Package").strip() == "slicer"
         assert run("dpkg-deb", "-f", str(deb), "Version").strip() == VERSION
@@ -145,7 +154,7 @@ else:
         assert run(str(installed / "usr/bin/slicer")).startswith("Slicer-" + VERSION)
         assert "Icon=Slicer" in (installed / "usr/share/applications/Slicer.desktop").read_text()
         assert not (work / "injected").exists()
-    print("Native installer: small deterministic downloader, exact source URL, download/corruption refusal, spaced paths, and real ELF Debian packaging passed.")
+    print("Native installer: automatic prerequisite installation, small deterministic downloader, exact source URL, download/corruption refusal, spaced paths, and real ELF Debian packaging passed.")
 
 
 if __name__ == "__main__":
