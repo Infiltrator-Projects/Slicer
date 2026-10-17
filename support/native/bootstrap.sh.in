@@ -13,7 +13,7 @@ usage() {
 Slicer $VERSION local native compiler and installer
 Usage: bash $(basename "$0") [options]
 
-  --profile native|aggressive   Native CPU tuning; aggressive also uses GCC PGO
+  --profile native|aggressive   Build profile (default: aggressive native + LTO + GCC PGO)
   --compiler PATH              C++ compiler (default: \$CXX or g++)
   --jobs NUMBER                Parallel jobs (default: CPU and memory limit)
   --build-dir PATH             Persistent source, compiler state and packages
@@ -32,7 +32,7 @@ use the portable release .deb on other machines.
 EOF
 }
 
-profile=native
+profile=aggressive
 compiler=${CXX:-g++}
 jobs=$(nproc 2>/dev/null || printf '2')
 if [[ -r /proc/meminfo ]]; then
