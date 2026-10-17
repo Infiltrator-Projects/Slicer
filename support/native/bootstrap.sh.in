@@ -18,7 +18,6 @@ Usage: bash $(basename "$0") [options]
   --jobs NUMBER                Parallel jobs (default: CPU and memory limit)
   --build-dir PATH             Persistent source, compiler state and packages
   --no-install                 Build and test a local .deb without installing it
-  --install-prerequisites       Explicitly allow APT to install host build tools
   --skip-tests                 Skip final tests (PGO training still runs)
   --download-only DIR           Download release sources only into an empty DIR
   --dry-run                    Print prerequisites and build plan without changes
@@ -26,10 +25,10 @@ Usage: bash $(basename "$0") [options]
   -h, --help                   Show this help without downloading sources
 
 The release source and pinned dependency archives are downloaded over HTTPS.
-No source archive is embedded. APT is used only for requested host development
-packages and the final local .deb install. curl or wget is required to download.
-Compilation runs as your regular user. The resulting machine-specific .deb is
-for this computer; use the portable release .deb on other machines.
+APT automatically installs any missing host development packages and installs
+the final local .deb. curl or wget is required to download. Compilation runs as
+your regular user. The resulting machine-specific .deb is for this computer;
+use the portable release .deb on other machines.
 EOF
 }
 
@@ -45,7 +44,6 @@ fi
 build_dir=
 extract_dir=
 no_install=0
-install_prerequisites=0
 skip_tests=0
 dry_run=0
 metadata=0
@@ -63,7 +61,6 @@ while (($#)); do
             esac
             shift 2 ;;
         --no-install) no_install=1; shift ;;
-        --install-prerequisites) install_prerequisites=1; shift ;;
         --skip-tests) skip_tests=1; shift ;;
         --dry-run) dry_run=1; shift ;;
         --metadata) metadata=1; shift ;;
@@ -93,7 +90,7 @@ print_command() { printf ' '; printf '%q ' "$@"; printf '\n'; }
 if ((dry_run)); then
     printf 'Slicer %s; source %s\nSource URL: %s\nProfile: %s\nBuild directory: %s\n' \
         "$VERSION" "$SOURCE_SHA" "$SOURCE_URL" "$profile" "$build_dir"
-    printf 'Host prerequisite command (only run with --install-prerequisites):\n'
+    printf 'Host prerequisite package set (missing packages are installed automatically):\n'
     print_command sudo apt-get install --no-install-recommends "${prerequisites[@]}"
     printf 'Download the exact release source and its pinned dependencies, then compile them.\nBuild command:\n'
     plan=(bash "$source_dir/support/build-native.sh" --profile "$profile" --compiler "$compiler"
@@ -165,11 +162,8 @@ for package in "${prerequisites[@]}"; do
     fi
 done
 if ((${#missing[@]})); then
-    printf 'Missing host development packages:\n'
+    printf 'Missing host development packages; installing automatically:\n'
     print_command sudo apt-get install --no-install-recommends "${missing[@]}"
-    if ((!install_prerequisites)); then
-        fail "install these prerequisites, or rerun with --install-prerequisites"
-    fi
     sudo apt-get update
     sudo apt-get install --no-install-recommends "${missing[@]}"
 fi
