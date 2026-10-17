@@ -80,6 +80,7 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/Slicer.svg"
         assert artifact.read_bytes() == repeated.read_bytes(), "same Git commit must produce identical bytes"
         help_text = run("bash", str(artifact), "--help")
         assert f"Slicer {VERSION}" in help_text
+        assert "default: aggressive" in help_text, "plain installer execution must default to aggressive native + LTO + PGO"
         assert "--install-prerequisites" not in help_text, "prerequisite installation must not require an opt-in switch"
         metadata = json.loads(run("bash", str(artifact), "--metadata"))
         assert metadata["version"] == VERSION and metadata["source_sha"] == sha
@@ -104,7 +105,7 @@ else:
                            LSM_FIXTURE_SOURCE_URL=expected_url, LSM_FIXTURE_ARCHIVE=str(archive))
 
         build_dir = work / "build space $(touch injected)"
-        run("bash", str(artifact), "--profile", "aggressive", "--jobs", "2", "--build-dir", str(build_dir), "--dry-run", "--no-install")
+        run("bash", str(artifact), "--jobs", "2", "--build-dir", str(build_dir), "--dry-run", "--no-install")
         assert not build_dir.exists(), "dry run must not create build state"
         extracted = work / "extracted source"
         run("bash", str(artifact), "--download-only", str(extracted), env=environment)
@@ -135,7 +136,7 @@ else:
         write(tools / "sudo", '#!/usr/bin/env bash\nprintf "%s\\n" "$*" >> "$SLICER_FIXTURE_SUDO_LOG"\nexit 0\n', executable=True)
         environment = dict(environment, PATH=str(tools) + os.pathsep + os.environ["PATH"],
                            SLICER_FIXTURE_SUDO_LOG=str(sudo_log))
-        run("bash", str(artifact), "--profile", "aggressive", "--jobs", "2", "--build-dir", str(build_dir), "--no-install", env=environment)
+        run("bash", str(artifact), "--jobs", "2", "--build-dir", str(build_dir), "--no-install", env=environment)
         sudo_calls = sudo_log.read_text().splitlines()
         assert sudo_calls[0] == "apt-get update", sudo_calls
         assert any(call.startswith("apt-get install --no-install-recommends ") and "libglu1-mesa-dev" in call
@@ -154,7 +155,7 @@ else:
         assert run(str(installed / "usr/bin/slicer")).startswith("Slicer-" + VERSION)
         assert "Icon=Slicer" in (installed / "usr/share/applications/Slicer.desktop").read_text()
         assert not (work / "injected").exists()
-    print("Native installer: automatic prerequisite installation, small deterministic downloader, exact source URL, download/corruption refusal, spaced paths, and real ELF Debian packaging passed.")
+    print("Native installer: aggressive native/LTO/PGO default, automatic prerequisite installation, small deterministic downloader, exact source URL, download/corruption refusal, spaced paths, and real ELF Debian packaging passed.")
 
 
 if __name__ == "__main__":
