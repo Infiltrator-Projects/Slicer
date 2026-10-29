@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: Verify
+run-name: ${{ inputs.publish_release && 'Release Slicer' || 'Verify Slicer' }} / ${{ inputs.platform || 'all' }} / ${{ github.ref_name }}
 
 on:
   push:
@@ -19,6 +20,10 @@ on:
         description: Optional Verify run to reuse when Windows product sources are unchanged
         type: string
         default: ''
+      publish_release:
+        description: Publish after successful checks (requires all platforms)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,8 +53,15 @@ jobs:
       - name: Validate version and repository-owned build machinery
         id: contract
         shell: bash
+        env:
+          PUBLISH_RELEASE: ${{ inputs.publish_release || false }}
+          BUILD_PLATFORM: ${{ inputs.platform || 'all' }}
         run: |
           set -euo pipefail
+          if [[ "$PUBLISH_RELEASE" == true && "$BUILD_PLATFORM" != all ]]; then
+            echo 'Publishing requires checks for all platforms.' >&2
+            exit 1
+          fi
 
           version=$(tr -d '[:space:]' < support/VERSION)
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
@@ -76,6 +88,7 @@ jobs:
           python3 support/verify-vendor.py
           python3 support/native/verify-installer.py
           python3 support/native/verify-driver.py
+          python3 support/verify-release.py
 
           if grep -REn --include='*.yml' --include='*.yaml' \
             'uses:[[:space:]]+Prusa-Development/PrusaSlicer-Actions' \

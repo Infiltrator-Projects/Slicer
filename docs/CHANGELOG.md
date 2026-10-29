@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.9
+
+- Add a **Release Slicer** action with automatic version numbering and progress links, without manual build-run numbers or asset uploads.
+- Reuse suitable running or completed builds, start full checks when needed, and publish explicitly requested releases only after qualification.
+- Make release requests repeatable after failures and remove the obsolete hardcoded GUI-recovery run.
+
 ## 0.0.8
 
 - Protect repository source and unrelated directories from native build/staging cleanup, with explicit ownership checks and regression coverage.

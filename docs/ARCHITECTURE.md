@@ -23,7 +23,9 @@ Do not move engine policy into packaging or provider transport code. Geometry/mo
 
 ## Qualification and publication
 
-`Verify` owns compilation and qualification for the portable DEB, Windows EXE and aggressive native source installer. It preserves source identity and hashes. `Publish release` consumes those artifacts and compares remote bytes without rebuilding. Detailed recovery contracts belong to [Release engineering](RELEASE_ENGINE.md).
+`Verify` owns compilation and qualification for the portable DEB, Windows EXE and aggressive native source installer. It preserves source identity and hashes. `Advanced release publishing` consumes those artifacts and compares remote bytes without rebuilding. Detailed recovery contracts belong to [Release engineering](RELEASE_ENGINE.md).
+
+`Release Slicer` is the user entry point. It prepares the next available version on `main`, reuses a suitable verification run or requests a full build, and delegates publication to the existing publisher. It does not produce or replace release binaries itself.
 
 The native installer downloads the exact release commit over HTTPS, including its pinned vendor archives, and uses the product-owned native driver. The downloaded dependency archives are checked against the release manifest before compilation; no source archive is embedded in the `.run`. Machine-specific optimisation belongs to local compilation, while the generic DEB retains portable CPU assumptions.
 

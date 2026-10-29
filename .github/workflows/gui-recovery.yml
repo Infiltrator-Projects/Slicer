@@ -1,16 +1,13 @@
-name: Qualify GUI and publish existing candidates
-run-name: Publish Slicer 0.0.5 from qualified installers
+name: Advanced GUI release recovery
+run-name: Recover an existing tested release
 
 on:
-  push:
-    branches: [main]
-    paths: [.github/workflows/gui-recovery.yml]
   workflow_dispatch:
     inputs:
       qualified_run_id:
         description: Verify run containing the existing release candidates
         type: string
-        default: '38971833472'
+        required: true
 
 permissions:
   actions: read
@@ -21,7 +18,7 @@ jobs:
     name: Qualify the existing Linux interface
     uses: ./.github/workflows/gui-startup.yml
     with:
-      verify_run_id: ${{ inputs.qualified_run_id || '38971833472' }}
+      verify_run_id: ${{ inputs.qualified_run_id }}
 
   qualified:
     name: Wait for existing platform qualifications
@@ -29,7 +26,7 @@ jobs:
     timeout-minutes: 180
     env:
       GH_TOKEN: ${{ github.token }}
-      VERIFY_RUN: ${{ inputs.qualified_run_id || '38971833472' }}
+      VERIFY_RUN: ${{ inputs.qualified_run_id }}
     steps:
       - name: Require successful original platform jobs
         shell: bash
@@ -63,4 +60,4 @@ jobs:
       contents: write
     uses: ./.github/workflows/release.yml
     with:
-      qualified_run_id: ${{ inputs.qualified_run_id || '38971833472' }}
+      qualified_run_id: ${{ inputs.qualified_run_id }}

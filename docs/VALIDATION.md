@@ -13,9 +13,15 @@ python3 support/linux/verify-staging.py
 python3 support/linux/verify-build-root.py
 python3 support/native/verify-installer.py
 python3 support/native/verify-driver.py
+python3 support/verify-release.py
 ```
 
 Installer fixtures use disposable repositories and paths. They exercise production download/extraction/driver behaviour, including exact release URLs, spaces and failed/corrupt download rejection.
+
+Release-preparation fixtures use real disposable Git remotes and a local GitHub CLI
+fixture. They cover automatic/explicit numbering, immutable tags, clean-main
+requirements, active-build reuse, pagination, expired/incomplete artifacts,
+rejection of other-source or partial runs, and retrying after GitHub failure.
 
 ## Required release evidence
 

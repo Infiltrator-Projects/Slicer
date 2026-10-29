@@ -1,0 +1,44 @@
+name: Release Slicer
+run-name: Release Slicer
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (optional — leave blank for automatic numbering)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: release-request-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Prepare release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Require main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo 'Select main when running Release Slicer.' >&2
+          exit 1
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+      - name: Prepare and release Slicer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 support/release.py --version "$RELEASE_VERSION"

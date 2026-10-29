@@ -36,6 +36,8 @@ The native build driver builds the application and runs its tests. Windows build
 
 ## Releases
 
+To publish, open [Release Slicer](https://github.com/Infiltrator-Projects/Slicer/actions/workflows/release-slicer.yml), click **Run workflow** on `main`, and leave the version blank for automatic numbering. Builds, tests and publication then run automatically. The workflow summary links to progress. See [Release engineering](../docs/RELEASE_ENGINE.md) for details and advanced recovery.
+
 Development stays on `main`. `support/VERSION` is the sole release-intent source of truth. Releases are produced from the exact tested commit, and published tags and assets are immutable. The latest published release is the repository's GitHub [Latest release](https://github.com/Infiltrator-Projects/Slicer/releases/latest) rather than a second version value maintained in this document.
 
 ## Release assets

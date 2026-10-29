@@ -2,6 +2,32 @@
 
 Slicer owns its build and release machinery in this repository. [support/VERSION](../support/VERSION) is the sole product release authority. Profile and file-format compatibility versions remain separate from the product version.
 
+## Publish a release
+
+Once your changes are on `main`:
+
+1. Open [Release Slicer](https://github.com/Infiltrator-Projects/Slicer/actions/workflows/release-slicer.yml) in GitHub Actions.
+2. Click **Run workflow**, keeping `main` selected.
+3. Leave **Version** blank for automatic numbering, or enter a specific new version.
+4. Click **Run workflow**. Follow the progress link in its summary.
+
+No build-run numbers or asset uploads are needed. If the version in
+`support/VERSION` is not tagged yet, it is used as-is. Otherwise the action selects
+the next unused patch version and saves it on `main`. Existing tags are never changed.
+The ordinary repository token supplied by GitHub performs this work; no additional
+secret is required.
+
+A suitable running build is reused. Successful builds with all unexpired release
+files go directly to publication; missing, failed or expired builds cause fresh
+checks for all platforms. The explicitly requested manual build publishes after
+the checks and sealing pass, just like the existing automatic push-to-main flow.
+Individual Linux-only or Windows-only verification runs do not publish.
+
+If a request fails, rerun **Release Slicer** after resolving the reported error.
+An already prepared, untagged version is retained, so retrying does not keep
+incrementing versions or restarting a suitable running build. Published release
+files remain immutable.
+
 ## Release contract
 
 A successful `Verify` workflow is the sole producer and qualifier of release
@@ -14,8 +40,8 @@ binaries and the local source installer. It creates exactly three distributable 
 GitHub supplies the source `.zip` and `.tar.gz` automatically from the release
 tag. The small `.run` downloads the archive for that exact release commit over HTTPS, including its pinned dependency archives, then compiles and installs on the target machine. It contains no embedded source archive. Vendor hashes are verified before compilation.
 
-The `Publish release` workflow normally consumes the sealed artifacts from the
-exact successful push-to-main `Verify` run. It never rebuilds them. Before publication it
+The `Advanced release publishing` workflow normally consumes the sealed artifacts from the
+exact successful push-to-main or explicitly release-requested all-platform `Verify` run. It never rebuilds them. Before publication it
 checks the recorded source commit, version, SHA-256 hashes, package identity,
 native installer identity and Windows PE executable header. The PE header check is not an Authenticode signing claim. A release is created as a draft, the remote
 asset bytes are compared with the sealed candidates, and only then is it made
@@ -24,16 +50,21 @@ public.
 `support/VERSION` is the release authority. CMake reads it directly through `support/version.inc`; package and installer helpers read the same file. Once a version has been published, changes outside the workflow
 files require the version to advance before another release can qualify.
 
-## Recover a failed sealing or publication job
+## Advanced recovery
 
-If the source contract and all three asset qualification jobs succeeded but sealing failed, dispatch `Publish release` with `qualified_run_id` set to that original Verify run ID. Recovery checks that the run came from this repository's `ci.yml` push to `main`, validates the latest source/Linux/Windows/native installer job results, downloads the original three candidates, and seals those exact bytes. It does not rebuild them.
+Use **Release Slicer** for normal publishing and retries. The underlying recovery
+workflows remain available when a maintainer needs to select particular historical
+builds or combine separate platform qualifications.
+
+If the source contract and all three asset qualification jobs succeeded but sealing failed, dispatch `Advanced release publishing` with `qualified_run_id` set to that original Verify run ID. Recovery checks that the run came from this repository's `ci.yml` push to `main` or a manual verification, validates the latest source/Linux/Windows/native installer job results, downloads the original three candidates, and seals those exact bytes. It does not rebuild them.
 
 A newer main commit is accepted only if it is a descendant with changes confined to workflow files. The release tag must identify the original qualified product commit. Published bytes are compared with the qualified candidates before and after publication; existing public assets are never replaced.
 
 ## Build and publication ownership
 
-Slicer keeps two repository-owned workflows:
+Slicer separates release preparation, verification and publication:
 
+- `.github/workflows/release-slicer.yml` and `support/release.py` — select a version and coordinate the existing workflows.
 - `.github/workflows/ci.yml` — verify, build, test and seal exact candidates.
 - `.github/workflows/release.yml` — publish the already-qualified bytes.
 
