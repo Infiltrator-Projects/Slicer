@@ -57,5 +57,11 @@ The installer builds unprivileged, tests, packages the staged application and re
 
 Dependency prefixes can embed absolute paths. Keep a retained prefix in its original location. The release driver validates build-root ownership before cleanup; incompatible native compiler or optimisation settings require a separate build root or `--clean`.
 
+The native driver also validates build and staging ownership. Source directories
+are protected even if they contain CMake caches or ownership markers. Build and
+staging paths must be separate; a new staging directory must be empty. A retained
+stage is identified by its adjacent `.slicer-native-stage-owner` file. Choose a
+fresh staging path for old, unmarked installation trees.
+
 [Release engineering](RELEASE_ENGINE.md) defines qualification and publication. [Validation](VALIDATION.md) defines the complete verification entry points.
 

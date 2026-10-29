@@ -33,7 +33,7 @@ Options:
   --build-root PATH            Build root (default: build/native)
   --install-prefix PATH        Installed prefix (default: /usr/local; /usr when staging)
   --stage-dir PATH             Stage installation under PATH after build/tests
-  --clean                      Remove the selected build root first
+  --clean                      Remove the selected owned build root first
   --skip-tests                 Do not run the test suite
   --print-config               Probe and print settings without building
   -h, --help                   Show this help
@@ -48,6 +48,9 @@ The resulting application is left under:
 --stage-dir creates a filesystem installation tree; this script never installs
 into the running system. Reuse a build root only with matching build settings,
 or pass --clean to rebuild it with different settings.
+Build and staging directories must be separate. New directories must be empty;
+nonempty directories require ownership by this checkout. Existing native build
+caches can be adopted when CMake records this checkout as their source.
 EOF
 }
 
@@ -175,9 +178,49 @@ if [[ -n "$stage_dir" ]]; then
         fail "--stage-dir must not be the repository root or one of its parents"
     [[ "$build_root" != "$stage_dir" && "$build_root" != "$stage_dir/"* ]] ||
         fail "--stage-dir must not contain the build root"
+    [[ "$stage_dir" != "$build_root/"* ]] ||
+        fail "--stage-dir must not be inside the build root"
     if ((!install_prefix_set)); then
         install_prefix=/usr
     fi
+fi
+
+# Match the release driver's ownership contract before trusting any cleanup
+# target. Legacy caches are accepted only when CMake identifies this source;
+# a matching compiler fingerprint alone does not establish checkout ownership.
+validate_directory() {
+    local directory=$1 owner=$2 kind=$3 entries source_tree source_path
+    for source_tree in .git .github docs src support; do
+        source_path=$(realpath -m -- "$repo_root/$source_tree")
+        [[ "$directory" != "$source_path" && "$directory" != "$source_path/"* &&
+           "$source_path" != "$directory/"* ]] ||
+            fail "$kind directory overlaps repository source: $directory"
+    done
+    [[ ! -e "$directory" || -d "$directory" ]] ||
+        fail "$kind directory is not a directory: $directory"
+    if [[ -e "$owner" || -L "$owner" ]]; then
+        [[ -f "$owner" && ! -L "$owner" && "$(cat "$owner")" == "$repo_root" ]] ||
+            fail "$kind directory has invalid ownership or belongs to another source checkout: $directory"
+    elif [[ -d "$directory" ]]; then
+        entries=$(find "$directory" -mindepth 1 -maxdepth 1 -print -quit) ||
+            fail "cannot inspect $kind directory: $directory"
+        if [[ -n "$entries" ]]; then
+            if [[ "$kind" == build ]] &&
+               { grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root" "$directory/app/CMakeCache.txt" 2>/dev/null ||
+                 grep -Fxq "CMAKE_HOME_DIRECTORY:INTERNAL=$repo_root/support/deps" "$directory/deps/CMakeCache.txt" 2>/dev/null; }; then
+                return
+            fi
+            fail "nonempty $kind directory has no matching Slicer ownership: $directory"
+        fi
+    fi
+}
+
+build_owner="$build_root/.slicer-native-owner"
+validate_directory "$build_root" "$build_owner" build
+if [[ -n "$stage_dir" ]]; then
+    # Keep ownership outside DESTDIR so the marker cannot enter a package.
+    stage_owner="${stage_dir}.slicer-native-stage-owner"
+    validate_directory "$stage_dir" "$stage_owner" staging
 fi
 
 probe_dir=$(mktemp -d "${TMPDIR:-/tmp}/slicer-native-probe.XXXXXX")
@@ -269,18 +312,26 @@ configuration=$(printf '%s\n' \
     "cmake=$cmake_version" \
     "version=$(sha256sum support/version.inc support/VERSION)" \
     "vendor=$(sha256sum support/deps/vendor/manifest.cmake)")
-if ((clean)); then
-    rm -rf -- "$build_root"
-elif [[ -f "$build_root/.slicer-native-config" ]]; then
+if ((!clean)) && [[ -f "$build_root/.slicer-native-config" ]]; then
     [[ "$(cat "$build_root/.slicer-native-config")" == "$configuration" ]] ||
         fail "build settings changed in $build_root; use --clean or a different --build-root"
-elif [[ -d "$deps_build" || -d "$app_build" ]]; then
+elif ((!clean)) && [[ -d "$deps_build" || -d "$app_build" ]]; then
     fail "unidentified existing build cache in $build_root; use --clean or a different --build-root"
 fi
 
 python3 support/verify-vendor.py
+validate_directory "$build_root" "$build_owner" build
+if ((clean)); then
+    rm -rf -- "$build_root"
+fi
 mkdir -p "$build_root"
+printf '%s\n' "$repo_root" > "$build_owner"
 printf '%s\n' "$configuration" > "$build_root/.slicer-native-config"
+if [[ -n "$stage_dir" ]]; then
+    validate_directory "$stage_dir" "$stage_owner" staging
+    mkdir -p "$stage_dir"
+    printf '%s\n' "$repo_root" > "$stage_owner"
+fi
 
 # Custom Autotools dependency recipes run at build time, so keep the chosen
 # toolchain in the environment as well as forwarding it through CMake.
@@ -389,6 +440,7 @@ else
 fi
 
 if [[ -n "$stage_dir" ]]; then
+    validate_directory "$stage_dir" "$stage_owner" staging
     rm -rf -- "$stage_dir"
     mkdir -p "$stage_dir"
     DESTDIR="$stage_dir" cmake --install "$app_build"

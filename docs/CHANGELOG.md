@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.8
+
+- Protect repository source and unrelated directories from native build/staging cleanup, with explicit ownership checks and regression coverage.
+- Write sequential-arrangement test SVGs into the build directory, keeping generated output out of the source checkout.
+- Document the inherited source baseline and the procedure for importing upstream fixes.
+
 ## 0.0.7
 
 - Make the Linux native `.run` installer automatically detect and install missing Debian-family host development prerequisites before compiling, without a separate prerequisite-install option.

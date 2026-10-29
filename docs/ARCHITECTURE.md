@@ -4,6 +4,8 @@
 
 Slicer owns product identity, distribution and current development of the desktop application and slicing engine. Existing model, preset and file-format compatibility remains part of the implementation contract. [Engineering philosophy](PHILOSOPHY.md) governs design and documentation; the project licence is in [LICENSE](../LICENSE).
 
+[Upstream maintenance](UPSTREAM.md) records the inherited source baseline, its known provenance limits, and the procedure for importing upstream fixes.
+
 ## Dependency direction
 
 - `src/libslic3r` owns geometry, model, configuration, slicing and G-code generation.

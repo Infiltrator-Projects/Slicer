@@ -26,7 +26,7 @@ if (SLIC3R_BUILD_TESTS)
     list(APPEND _catch_args "${CATCH_EXTRA_ARGS}")
     add_test(NAME libseqarrange_tests
              COMMAND libseqarrange_tests ${_catch_args}
-             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 endif()
 

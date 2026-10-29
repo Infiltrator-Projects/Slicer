@@ -35,4 +35,11 @@ Capture reproducible engine, UI, persistence or installer defects at the narrowe
 
 Release-script fixtures also reject a source checkout or unrelated nonempty directory as a cleanup target, accept an owned empty build root, verify safe reuse/cleanup, and adopt legacy caches only when CMake identifies the same source owner. The compiler is stubbed after preflight; all deletion targets belong to the disposable fixture.
 
+The native-driver fixture applies the same ownership checks to build and staging
+paths, rejects overlapping directories and foreign or symlinked ownership markers,
+and exercises repeated cleanup and staging with the real compiler. Staging ownership
+is recorded beside the stage directory so it cannot enter the installation package.
+Arrangement-test SVGs are generated in their CMake binary directory; running CTest
+must leave the source checkout free of generated test output.
+
 Test-owned assertions use Catch REQUIRE so Release/NDEBUG builds retain extrusion, arc-fitting, arrangement, embossing and support-generation checks. Production and third-party header assertion modes remain unchanged.
