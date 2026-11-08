@@ -6,7 +6,6 @@ on:
   push:
     branches: [main]
     paths-ignore:
-      - .github/workflows/gui-startup.yml
       - .github/workflows/gui-recovery.yml
       - .github/workflows/release.yml
   workflow_dispatch:
