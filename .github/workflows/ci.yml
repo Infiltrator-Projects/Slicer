@@ -89,7 +89,10 @@ jobs:
             support/linux/verify-build-root.cpp -o "$RUNNER_TEMP/slicer-verify-build-root"
           "$RUNNER_TEMP/slicer-verify-build-root" support/linux/build-deb.sh
           python3 support/verify-vendor.py
-          python3 support/native/verify-installer.py
+          c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            support/native/build-run.cpp -o "$RUNNER_TEMP/slicer-native-run-builder"
+          SLICER_NATIVE_RUN_BUILDER="$RUNNER_TEMP/slicer-native-run-builder" \
+            python3 support/native/verify-installer.py
           python3 support/native/verify-driver.py
           python3 support/verify-release.py
 
@@ -280,7 +283,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 support/native/build-run.py --output-dir dist --source-ref HEAD
+          c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            support/native/build-run.cpp -o "$RUNNER_TEMP/slicer-native-run-builder"
+          "$RUNNER_TEMP/slicer-native-run-builder" --output-dir dist --source-ref HEAD
           version=$(tr -d '[:space:]' < support/VERSION)
           installer="dist/slicer-${version}-native-installer.run"
           test -x "$installer"

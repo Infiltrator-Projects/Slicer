@@ -3,7 +3,6 @@
 """Exercise release-source downloads and Debian packaging with a real ELF fixture."""
 
 import gzip
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -32,9 +31,14 @@ def write(path, text, executable=False):
 
 
 def main():
-    module_spec = importlib.util.spec_from_file_location("build_run", ROOT / "support/native/build-run.py")
-    builder = importlib.util.module_from_spec(module_spec)
-    module_spec.loader.exec_module(builder)
+    builder = Path(os.environ["SLICER_NATIVE_RUN_BUILDER"]).resolve()
+    assert builder.is_file(), "native C++ installer builder was not compiled"
+    def build_installer(repository, source_ref, output_directory):
+        path = run(str(builder), "--repository", str(repository),
+                   "--source-ref", source_ref, "--output-dir", str(output_directory)).strip()
+        result = Path(path)
+        assert result.is_file(), result
+        return result
     with tempfile.TemporaryDirectory(prefix="slicer installer fixture ") as temp:
         work = Path(temp)
         repo = work / "source fixture"
@@ -75,8 +79,8 @@ printf '<svg/>\n' > "$stage/usr/share/icons/hicolor/scalable/apps/Slicer.svg"
         sha = run("git", "-C", str(repo), "rev-parse", "HEAD").strip()
         # Untracked build output must never enter the distributable.
         write(repo / "build/should-not-bundle", "untracked output\n")
-        artifact = builder.build(repo, "HEAD", work / "first output")
-        repeated = builder.build(repo, "HEAD", work / "second output")
+        artifact = build_installer(repo, "HEAD", work / "first output")
+        repeated = build_installer(repo, "HEAD", work / "second output")
         assert artifact.read_bytes() == repeated.read_bytes(), "same Git commit must produce identical bytes"
         help_text = run("bash", str(artifact), "--help")
         assert f"Slicer {VERSION}" in help_text
