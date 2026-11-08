@@ -14,6 +14,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
