@@ -67,7 +67,10 @@ jobs:
           test "$(dpkg-deb -f "$deb" Version)" = "$version"
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xvfb xauth x11-utils imagemagick "./$deb"
-          python3 support/verify-fonts.py /usr/share/Slicer/fonts
+          c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            support/verify-fonts.cpp -o "$RUNNER_TEMP/slicer-verify-fonts"
+          test ! -e support/verify-fonts.py
+          "$RUNNER_TEMP/slicer-verify-fonts" /usr/share/Slicer/fonts
 
       - name: Open fresh interface and capture screen
         env:
