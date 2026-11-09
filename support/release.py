@@ -23,7 +23,10 @@ class ReleaseError(RuntimeError):
 
 
 def run(*command):
-    result = subprocess.run(command, text=True, capture_output=True)
+    try:
+        result = subprocess.run(command, text=True, capture_output=True)
+    except OSError as exc:
+        raise ReleaseError(f"Unable to start {command[0]}: {exc}") from exc
     if result.returncode:
         raise ReleaseError(result.stderr.strip() or result.stdout.strip()
                            or f"{command[0]} failed")
@@ -68,7 +71,7 @@ def api_pages(endpoint, key):
 def eligible_run(item, repository, sha):
     return (item.get("head_sha") == sha and item.get("head_branch") == "main"
             and item.get("path") == ".github/workflows/ci.yml"
-            and item.get("head_repository", {}).get("full_name") == repository
+            and (item.get("head_repository") or {}).get("full_name") == repository
             and (item.get("event") == "push" or
                  (item.get("event") == "workflow_dispatch"
                   and (item.get("display_title") == RELEASE_RUN_NAME or
@@ -155,7 +158,7 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except (ReleaseError, ValueError, KeyError) as error:
+    except (ReleaseError, ValueError, KeyError, OSError) as error:
         print(f"Release could not be completed: {error}\n"
               "Run Release Slicer again after resolving the reported problem. "
               "Published releases have not been replaced.", file=sys.stderr)
