@@ -68,11 +68,29 @@ try {
         }
     }
 
-    $ConsoleExecutable = Join-Path $InstallDir 'slicer-console.exe'
-    & python "$PSScriptRoot/../verify-fonts.py" (Join-Path $InstallDir 'resources/fonts')
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Installed MB font verification failed.'
+    # Qualify the installed font bytes and SFNT identities using the same
+    # repository-owned C++17 validator as Linux, never a retired Python script.
+    # Build in the isolated smoke root, so the runner is not modified.
+    $FontSource = Join-Path $PSScriptRoot 'font-verify'
+    $FontBuild = Join-Path $SmokeRoot 'font-verify-build'
+    & cmake -S $FontSource -B $FontBuild -G 'Visual Studio 17 2022' -A x64
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to configure native MB font validator.' }
+    & cmake --build $FontBuild --config Release --target slicer-font-verify
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to compile native MB font validator.' }
+    $FontVerifier = Join-Path $FontBuild 'Release/slicer-font-verify.exe'
+    if (-not (Test-Path -LiteralPath $FontVerifier -PathType Leaf)) {
+        throw 'Native MB font validator executable was not produced.'
     }
+    Push-Location (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
+    try {
+        & $FontVerifier (Join-Path $InstallDir 'resources/fonts')
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Installed MB font verification failed.'
+        }
+    } finally {
+        Pop-Location
+    }
+    $ConsoleExecutable = Join-Path $InstallDir 'slicer-console.exe'
     if (-not (Test-Path -LiteralPath $ConsoleExecutable -PathType Leaf)) {
         throw "Installer did not extract the Slicer console executable."
     }
