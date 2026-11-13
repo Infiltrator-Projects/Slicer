@@ -90,7 +90,9 @@ jobs:
           c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -pthread \
             support/linux/verify-build-root.cpp -o "$RUNNER_TEMP/slicer-verify-build-root"
           "$RUNNER_TEMP/slicer-verify-build-root" support/linux/build-deb.sh
-          python3 support/verify-vendor.py
+          c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            support/verify-vendor.cpp -o "$RUNNER_TEMP/slicer-verify-vendor"
+          "$RUNNER_TEMP/slicer-verify-vendor" support/deps/vendor
           c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
             support/native/build-run.cpp -o "$RUNNER_TEMP/slicer-native-run-builder"
           SLICER_NATIVE_RUN_BUILDER="$RUNNER_TEMP/slicer-native-run-builder" \
