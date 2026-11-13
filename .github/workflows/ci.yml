@@ -84,7 +84,9 @@ jobs:
           bash -n support/build-native.sh
           bash -n support/linux/build-deb.sh
           bash -n support/native/bootstrap.sh.in
-          python3 support/linux/verify-staging.py
+          c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror \
+            support/linux/verify-staging.cpp -o "$RUNNER_TEMP/slicer-verify-staging"
+          "$RUNNER_TEMP/slicer-verify-staging" .
           c++ -std=c++17 -O2 -Wall -Wextra -Wpedantic -Werror -pthread \
             support/linux/verify-build-root.cpp -o "$RUNNER_TEMP/slicer-verify-build-root"
           "$RUNNER_TEMP/slicer-verify-build-root" support/linux/build-deb.sh
